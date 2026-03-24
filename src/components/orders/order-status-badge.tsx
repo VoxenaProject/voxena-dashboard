@@ -45,6 +45,12 @@ function getStatusConfig(
             icon: PackageCheck,
             className: "bg-blue/12 text-blue border-blue/20",
           };
+    case "en_livraison":
+      return {
+        label: "En livraison",
+        icon: Truck,
+        className: "bg-violet/12 text-violet border-violet/20",
+      };
     case "livree":
       return {
         label: "Livrée",

@@ -154,7 +154,7 @@ export async function POST() {
     { name: "Nadia R.", phone: "+32 473 66 77 88" },
   ];
 
-  const statuses = ["nouvelle", "en_preparation", "prete", "recuperee", "livree"] as const;
+  const statuses = ["nouvelle", "en_preparation", "prete", "en_livraison", "recuperee", "livree"] as const;
   const orderTypes = ["emporter", "livraison"] as const;
 
   const orders = [];
@@ -211,6 +211,10 @@ export async function POST() {
         status = Math.random() > 0.15 ? "recuperee" : "livree";
       } else {
         status = statuses[Math.floor(Math.random() * statuses.length)];
+        // "en_livraison" uniquement pour les livraisons
+        if (status === "en_livraison" && orderType !== "livraison") {
+          status = "prete";
+        }
       }
 
       orders.push({

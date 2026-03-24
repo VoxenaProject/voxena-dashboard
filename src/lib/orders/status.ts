@@ -3,6 +3,9 @@ import type { OrderStatus, OrderType } from "@/lib/supabase/types";
 /**
  * Logique centralisée du flow de statuts commande.
  * Source unique de vérité utilisée dans OrderCard, OrderActions, etc.
+ *
+ * Flow emporter :  nouvelle → en_preparation → prete → recuperee
+ * Flow livraison : nouvelle → en_preparation → prete → en_livraison → livree
  */
 
 export interface NextAction {
@@ -34,8 +37,8 @@ export function getNextAction(
     case "prete":
       return orderType === "livraison"
         ? {
-            label: "Partie en livraison",
-            status: "livree",
+            label: "Envoyer en livraison",
+            status: "en_livraison",
             color: "bg-blue hover:bg-blue/90 text-white",
           }
         : {
@@ -43,6 +46,12 @@ export function getNextAction(
             status: "recuperee",
             color: "bg-violet hover:bg-violet/90 text-white",
           };
+    case "en_livraison":
+      return {
+        label: "Confirmer livrée",
+        status: "livree",
+        color: "bg-violet hover:bg-violet/90 text-white",
+      };
     default:
       return null;
   }
@@ -54,8 +63,9 @@ export function getNextAction(
 export const statusToastLabels: Record<string, string> = {
   en_preparation: "Commande acceptée — en cuisine",
   prete: "Commande prête",
+  en_livraison: "Commande envoyée en livraison",
   recuperee: "Client a récupéré sa commande",
-  livree: "Commande partie en livraison",
+  livree: "Commande livrée avec succès",
   annulee: "Commande annulée",
 };
 

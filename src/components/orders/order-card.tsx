@@ -19,8 +19,11 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { getNextAction, isTerminalStatus } from "@/lib/orders/status";
 import type { Order, OrderItem, OrderStatus } from "@/lib/supabase/types";
 
-// Steps de la progress bar
-const allSteps = ["nouvelle", "en_preparation", "prete", "done"] as const;
+// Steps de la progress bar — adapté au type
+function getStepCount(orderType?: string | null): number {
+  return orderType === "livraison" ? 5 : 4;
+}
+
 function getProgress(status: OrderStatus): number {
   switch (status) {
     case "nouvelle":
@@ -29,17 +32,17 @@ function getProgress(status: OrderStatus): number {
       return 1;
     case "prete":
       return 2;
+    case "en_livraison":
+      return 3;
     case "livree":
     case "recuperee":
-      return 3;
+      return 4; // terminal
     case "annulee":
       return -1;
     default:
       return 0;
   }
 }
-
-const stepLabels = ["Reçue", "En cuisine", "Prête", "Terminée"];
 
 interface OrderCardProps {
   order: Order;
@@ -128,7 +131,7 @@ export function OrderCard({
           {/* Progress bar */}
           {!isDone && order.status !== "annulee" && (
             <div className="flex items-center gap-1 mb-3">
-              {allSteps.map((_, i) => (
+              {Array.from({ length: getStepCount(order.order_type) }).map((_, i) => (
                 <div key={i} className="flex-1 flex items-center gap-1">
                   <div
                     className={`h-1 flex-1 rounded-full transition-colors duration-500 ${

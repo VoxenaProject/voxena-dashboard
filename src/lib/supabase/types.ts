@@ -1,7 +1,7 @@
 // Types de la base de données Voxena
 
 export type UserRole = "admin" | "owner";
-export type OrderStatus = "nouvelle" | "en_preparation" | "prete" | "livree" | "recuperee" | "annulee";
+export type OrderStatus = "nouvelle" | "en_preparation" | "prete" | "en_livraison" | "livree" | "recuperee" | "annulee";
 export type OrderType = "emporter" | "livraison";
 export type AgentStatus = "active" | "paused" | "error";
 

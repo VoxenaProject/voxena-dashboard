@@ -17,6 +17,7 @@ export async function PATCH(
       "nouvelle",
       "en_preparation",
       "prete",
+      "en_livraison",
       "livree",
       "recuperee",
       "annulee",
