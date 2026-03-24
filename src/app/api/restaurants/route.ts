@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireAuth, requireAdmin } from "@/lib/supabase/api-auth";
 
 // Créer un restaurant (admin uniquement)
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
+  if ("error" in admin) return admin.error;
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -34,6 +37,8 @@ export async function POST(request: NextRequest) {
 
 // Mettre à jour un restaurant
 export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth();
+  if ("error" in auth) return auth.error;
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -59,6 +64,8 @@ export async function PATCH(request: NextRequest) {
 
 // Supprimer un restaurant (admin)
 export async function DELETE(request: NextRequest) {
+  const admin = await requireAdmin();
+  if ("error" in admin) return admin.error;
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

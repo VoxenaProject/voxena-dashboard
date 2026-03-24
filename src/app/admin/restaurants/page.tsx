@@ -19,7 +19,7 @@ export default async function AdminRestaurantsPage() {
   const typedRestaurants = (restaurants as Restaurant[]) || [];
 
   return (
-    <div className="p-8">
+    <div className="p-6 lg:p-8" style={{ animation: "fade-in 0.35s ease-out" }}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">

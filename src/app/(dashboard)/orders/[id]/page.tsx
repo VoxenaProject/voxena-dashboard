@@ -47,7 +47,7 @@ export default async function OrderDetailPage({ params }: Props) {
   const typedEvents = (events as OrderEvent[]) || [];
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-6 lg:p-8 max-w-4xl" style={{ animation: "fade-in 0.35s ease-out" }}>
       {/* En-tête */}
       <div className="mb-6">
         <Link
@@ -63,7 +63,7 @@ export default async function OrderDetailPage({ params }: Props) {
               <h1 className="font-heading text-2xl font-bold tracking-tight">
                 {typedOrder.customer_name || "Client anonyme"}
               </h1>
-              <OrderStatusBadge status={typedOrder.status} />
+              <OrderStatusBadge status={typedOrder.status} orderType={typedOrder.order_type} />
             </div>
             <p className="text-sm text-muted-foreground">
               {format(new Date(typedOrder.created_at), "EEEE d MMMM yyyy à HH:mm", {
@@ -79,7 +79,7 @@ export default async function OrderDetailPage({ params }: Props) {
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
           {/* Articles */}
-          <Card>
+          <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-heading text-lg">Articles</CardTitle>
             </CardHeader>
@@ -121,7 +121,7 @@ export default async function OrderDetailPage({ params }: Props) {
 
           {/* Instructions spéciales */}
           {typedOrder.special_instructions && (
-            <Card>
+            <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="font-heading text-lg flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
@@ -138,7 +138,7 @@ export default async function OrderDetailPage({ params }: Props) {
 
           {/* Transcript */}
           {typedOrder.transcript && typedOrder.transcript.length > 0 && (
-            <Card>
+            <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="font-heading text-lg flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
@@ -177,7 +177,7 @@ export default async function OrderDetailPage({ params }: Props) {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Infos client */}
-          <Card>
+          <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-heading text-lg">Client</CardTitle>
             </CardHeader>
@@ -222,7 +222,7 @@ export default async function OrderDetailPage({ params }: Props) {
           </Card>
 
           {/* Timeline */}
-          <Card>
+          <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-heading text-lg">Historique</CardTitle>
             </CardHeader>

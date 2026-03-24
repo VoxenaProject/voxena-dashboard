@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Order } from "@/lib/supabase/types";
+import type { Order, OrderStatus } from "@/lib/supabase/types";
 
-export function useRealtimeOrders(initialOrders: Order[]) {
+export function useRealtimeOrders(
+  initialOrders: Order[],
+  restaurantId?: string | null
+) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const supabase = createClient();
 
@@ -13,11 +16,21 @@ export function useRealtimeOrders(initialOrders: Order[]) {
   }, [initialOrders]);
 
   useEffect(() => {
+    // Filtre realtime par restaurant_id si disponible
+    const filter = restaurantId
+      ? `restaurant_id=eq.${restaurantId}`
+      : undefined;
+
     const channel = supabase
       .channel("orders-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          ...(filter ? { filter } : {}),
+        },
         (payload) => {
           const newOrder = payload.new as Order;
           setOrders((prev) => [newOrder, ...prev]);
@@ -25,13 +38,16 @@ export function useRealtimeOrders(initialOrders: Order[]) {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          ...(filter ? { filter } : {}),
+        },
         (payload) => {
           const updatedOrder = payload.new as Order;
           setOrders((prev) =>
-            prev.map((o) =>
-              o.id === updatedOrder.id ? updatedOrder : o
-            )
+            prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
           );
         }
       )
@@ -40,7 +56,17 @@ export function useRealtimeOrders(initialOrders: Order[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, restaurantId]);
 
-  return orders;
+  // Mise à jour optimiste
+  const updateOrderStatus = useCallback(
+    (orderId: string, newStatus: OrderStatus) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      );
+    },
+    []
+  );
+
+  return { orders, updateOrderStatus };
 }

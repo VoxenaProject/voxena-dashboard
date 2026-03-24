@@ -31,8 +31,13 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Routes publiques (pas besoin d'auth)
-  if (pathname.startsWith("/api/webhooks") || pathname.startsWith("/api/orders/create") || pathname.startsWith("/api/menu")) {
+  // Routes publiques (webhooks, API agents, seed en dev)
+  if (
+    pathname.startsWith("/api/webhooks") ||
+    pathname.startsWith("/api/orders/create") ||
+    pathname.startsWith("/api/menu") ||
+    pathname.startsWith("/api/seed")
+  ) {
     return supabaseResponse;
   }
 
@@ -45,7 +50,6 @@ export async function updateSession(request: NextRequest) {
 
   // Connecté + sur /login → redirect vers dashboard
   if (user && pathname.startsWith("/login")) {
-    // Vérifier le rôle pour rediriger vers le bon dashboard
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")

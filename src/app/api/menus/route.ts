@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/supabase/api-auth";
 
 // Créer une catégorie
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if ("error" in auth) return auth.error;
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -30,6 +33,8 @@ export async function POST(request: NextRequest) {
 
 // Mettre à jour une catégorie
 export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth();
+  if ("error" in auth) return auth.error;
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -55,6 +60,8 @@ export async function PATCH(request: NextRequest) {
 
 // Supprimer une catégorie
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth();
+  if ("error" in auth) return auth.error;
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

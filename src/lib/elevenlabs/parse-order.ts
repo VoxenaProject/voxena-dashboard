@@ -37,12 +37,14 @@ export function parseOrderItems(raw: string): OrderItem[] {
 }
 
 /**
- * Calcule le total d'une commande si les prix sont disponibles
+ * Calcule le total d'une commande.
+ * Somme les articles qui ont un prix, retourne null si aucun article n'a de prix.
  */
 export function calculateTotal(items: OrderItem[]): number | null {
-  const hasPrice = items.some((item) => item.price != null);
-  if (!hasPrice) return null;
-  return items.reduce(
+  if (items.length === 0) return null;
+  const pricedItems = items.filter((item) => item.price != null);
+  if (pricedItems.length === 0) return null;
+  return pricedItems.reduce(
     (sum, item) => sum + (item.price || 0) * item.quantity,
     0
   );

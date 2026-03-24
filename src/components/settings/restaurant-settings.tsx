@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { OpeningHoursEditor } from "./opening-hours-editor";
 import type { Restaurant } from "@/lib/supabase/types";
 
 export function RestaurantSettings({
@@ -23,6 +24,9 @@ export function RestaurantSettings({
     whatsapp_phone: restaurant.whatsapp_phone || "",
     owner_name: restaurant.owner_name || "",
   });
+  const [openingHours, setOpeningHours] = useState(
+    restaurant.opening_hours || {}
+  );
 
   function handleChange(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -35,7 +39,11 @@ export function RestaurantSettings({
     const res = await fetch("/api/restaurants", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: restaurant.id, ...form }),
+      body: JSON.stringify({
+        id: restaurant.id,
+        ...form,
+        opening_hours: openingHours,
+      }),
     });
 
     if (res.ok) {
@@ -48,7 +56,7 @@ export function RestaurantSettings({
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="font-heading text-lg">
             Informations générales
@@ -61,6 +69,7 @@ export function RestaurantSettings({
               id="name"
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -82,7 +91,7 @@ export function RestaurantSettings({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="font-heading text-lg">Contact</CardTitle>
         </CardHeader>
@@ -113,7 +122,21 @@ export function RestaurantSettings({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="font-heading text-lg">
+            Horaires d&apos;ouverture
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OpeningHoursEditor
+            value={openingHours}
+            onChange={setOpeningHours}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="font-heading text-lg">Agent vocal</CardTitle>
         </CardHeader>
@@ -144,7 +167,11 @@ export function RestaurantSettings({
       </Card>
 
       <Button type="submit" disabled={loading} className="w-full">
-        <Save className="w-4 h-4 mr-2" />
+        {loading ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <Save className="w-4 h-4 mr-2" />
+        )}
         Enregistrer les modifications
       </Button>
     </form>

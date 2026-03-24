@@ -1,4 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { getCurrentRestaurantId } from "@/lib/supabase/auth";
+import { PageWrapper } from "@/components/ui/page-wrapper";
 import { RestaurantSettings } from "@/components/settings/restaurant-settings";
 import type { Restaurant } from "@/lib/supabase/types";
 
@@ -6,16 +8,20 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const supabase = createServiceClient();
+  const restaurantId = await getCurrentRestaurantId();
 
-  // Récupérer le premier restaurant (simplifié — en prod, filtrer par user)
-  const { data } = await supabase
-    .from("restaurants")
-    .select("*")
-    .limit(1)
-    .single();
+  let data = null;
+  if (restaurantId) {
+    const res = await supabase
+      .from("restaurants")
+      .select("*")
+      .eq("id", restaurantId)
+      .single();
+    data = res.data;
+  }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <PageWrapper className="max-w-2xl">
       <div className="mb-8">
         <h1 className="font-heading text-2xl font-bold tracking-tight">
           Paramètres
@@ -31,6 +37,6 @@ export default async function SettingsPage() {
           Aucun restaurant associé à votre compte.
         </p>
       )}
-    </div>
+    </PageWrapper>
   );
 }

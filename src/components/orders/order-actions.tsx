@@ -4,20 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { getNextAction, statusToastLabels } from "@/lib/orders/status";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
-
-const nextStatus: Partial<
-  Record<OrderStatus, { label: string; status: OrderStatus }>
-> = {
-  nouvelle: { label: "Lancer la préparation", status: "en_preparation" },
-  en_preparation: { label: "Marquer prête", status: "prete" },
-  prete: { label: "Marquer récupérée", status: "recuperee" },
-};
 
 export function OrderActions({ order }: { order: Order }) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const next = nextStatus[order.status];
+  const next = getNextAction(order.status, order.order_type);
 
   async function handleStatusChange(status: OrderStatus) {
     setLoading(true);
@@ -28,7 +21,7 @@ export function OrderActions({ order }: { order: Order }) {
     });
 
     if (res.ok) {
-      toast.success("Statut mis à jour");
+      toast(statusToastLabels[status] || "Statut mis à jour");
       router.refresh();
     } else {
       toast.error("Erreur lors de la mise à jour");
@@ -36,7 +29,6 @@ export function OrderActions({ order }: { order: Order }) {
     setLoading(false);
   }
 
-  // Commande terminée ou annulée — pas d'actions
   if (!next && order.status !== "prete") return null;
 
   return (
@@ -56,6 +48,7 @@ export function OrderActions({ order }: { order: Order }) {
       {next && (
         <Button
           size="sm"
+          className={next.color}
           disabled={loading}
           onClick={() => handleStatusChange(next.status)}
         >

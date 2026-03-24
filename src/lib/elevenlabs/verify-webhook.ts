@@ -9,9 +9,13 @@ export function verifyWebhookSignature(
 ): boolean {
   const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
 
-  // En dev sans secret configuré, accepter tout (avec warning)
+  // Sans secret configuré : accepter en dev uniquement
   if (!secret) {
-    console.warn("[webhook] ELEVENLABS_WEBHOOK_SECRET non configuré — signature non vérifiée");
+    if (process.env.NODE_ENV === "production") {
+      console.error("[webhook] ELEVENLABS_WEBHOOK_SECRET manquant en production — rejet");
+      return false;
+    }
+    console.warn("[webhook] ELEVENLABS_WEBHOOK_SECRET non configuré — mode dev, signature ignorée");
     return true;
   }
 
