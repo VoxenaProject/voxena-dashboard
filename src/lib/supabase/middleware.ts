@@ -61,15 +61,27 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Routes admin : vérifier le rôle
-  if (user && pathname.startsWith("/admin")) {
+  // Vérifier le rôle pour les routes protégées
+  if (user && !pathname.startsWith("/api")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    const isAdmin = profile?.role === "admin";
+    const isAdminRoute = pathname.startsWith("/admin");
+    const isRestaurantRoute = !isAdminRoute; // /, /orders, /menu, /settings
+
+    // Admin sur une route restaurant → redirect /admin
+    if (isAdmin && isRestaurantRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      return NextResponse.redirect(url);
+    }
+
+    // Owner sur une route admin → redirect /
+    if (!isAdmin && isAdminRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
