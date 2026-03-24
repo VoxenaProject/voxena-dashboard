@@ -441,13 +441,13 @@ export function MenuManager({ initialMenus, initialItems, restaurantId: propRest
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-sm font-semibold tabular-nums">
+                              <span className="font-mono text-sm font-bold tabular-nums min-w-[56px] text-right">
                                 {Number(item.price).toFixed(2)}€
                               </span>
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:!opacity-100"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs gap-1 px-2"
                                 onClick={() =>
                                   setItemDialog({
                                     open: true,
@@ -457,14 +457,15 @@ export function MenuManager({ initialMenus, initialItems, restaurantId: propRest
                                 }
                               >
                                 <Pencil className="w-3 h-3" />
+                                Modifier
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:!opacity-100"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                 onClick={() => handleDeleteItem(item.id)}
                               >
-                                <Trash2 className="w-3 h-3 text-destructive" />
+                                <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
                           </div>

@@ -32,7 +32,7 @@ export interface Restaurant {
   agent_status: AgentStatus;
   owner_name: string | null;
   logo_url: string | null;
-  opening_hours: Record<string, { open: string; close: string }> | null;
+  opening_hours: Record<string, { open: string; close: string }[]> | null;
   created_at: string;
 }
 
