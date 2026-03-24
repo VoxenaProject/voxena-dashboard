@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { MenuManager } from "@/components/menu/menu-manager";
+import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { Menu, MenuItem } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function MenuPage() {
   const supabase = createServiceClient();
   const restaurantId = await getCurrentRestaurantId();
+
+  if (!restaurantId) return <NoRestaurant />;
 
   let menusQuery = supabase
     .from("menus")

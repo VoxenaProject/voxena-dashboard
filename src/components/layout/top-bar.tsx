@@ -9,9 +9,45 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 
-export function TopBar() {
-  const [agentActive, setAgentActive] = useState(true);
+interface TopBarProps {
+  restaurantId?: string | null;
+  initialAgentStatus?: string;
+}
+
+export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarProps) {
+  const [agentActive, setAgentActive] = useState(initialAgentStatus === "active");
   const [chatOpen, setChatOpen] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  async function handleToggle(checked: boolean) {
+    setAgentActive(checked);
+    const newStatus = checked ? "active" : "paused";
+
+    if (restaurantId) {
+      setToggling(true);
+      const res = await fetch("/api/restaurants", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: restaurantId, agent_status: newStatus }),
+      });
+      setToggling(false);
+
+      if (!res.ok) {
+        setAgentActive(!checked); // rollback
+        toast.error("Erreur lors de la mise à jour");
+        return;
+      }
+    }
+
+    toast(
+      checked ? "Agent vocal activé" : "Agent vocal désactivé",
+      {
+        description: checked
+          ? "Les appels sont pris en charge par Voxena"
+          : "Les appels ne seront plus pris en charge",
+      }
+    );
+  }
 
   return (
     <>
@@ -20,28 +56,18 @@ export function TopBar() {
         <div className="flex items-center gap-2.5" data-tour="toggle-voxena">
           <div className="flex items-center gap-1.5">
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
                 agentActive ? "bg-green" : "bg-muted-foreground/30"
               }`}
             />
             <span className="text-xs font-medium text-muted-foreground">
-              {agentActive ? "Voxena actif" : "Voxena inactif"}
+              {agentActive ? "Voxena actif" : "Voxena en pause"}
             </span>
           </div>
           <Switch
             checked={agentActive}
-            onCheckedChange={(checked) => {
-              setAgentActive(checked);
-              toast(
-                checked
-                  ? "Agent vocal activé"
-                  : "Agent vocal désactivé",
-                { description: checked
-                  ? "Les appels sont pris en charge par Voxena"
-                  : "Les appels ne seront plus pris en charge"
-                }
-              );
-            }}
+            onCheckedChange={handleToggle}
+            disabled={toggling}
           />
         </div>
 

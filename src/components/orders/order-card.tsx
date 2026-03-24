@@ -64,10 +64,16 @@ export function OrderCard({
   const progress = getProgress(order.status);
   const isDone = isTerminalStatus(order.status);
 
-  // Heure estimée
-  const estimatedTime = isLivraison
+  // Heure estimée — fournie par l'agent ou calculée (+30min par défaut)
+  const agentTime = isLivraison
     ? order.delivery_time_estimate
     : order.pickup_time;
+
+  const estimatedTime = agentTime || (() => {
+    const d = new Date(order.created_at);
+    d.setMinutes(d.getMinutes() + 30);
+    return `~${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  })();
 
   return (
     <motion.div

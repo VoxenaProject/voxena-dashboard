@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import "@/lib/env"; // Validation des env vars au boot
 
 // Client service_role pour les API routes (bypass RLS)
 export function createServiceClient() {

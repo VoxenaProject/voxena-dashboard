@@ -2,6 +2,23 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseOrderItems, calculateTotal } from "@/lib/elevenlabs/parse-order";
 
+// Rate limiter simple en mémoire : max 30 commandes/min par restaurant
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(restaurantId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(restaurantId);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(restaurantId, { count: 1, resetAt: now + 60000 });
+    return true;
+  }
+
+  if (entry.count >= 30) return false;
+  entry.count++;
+  return true;
+}
+
 /**
  * POST /api/orders/create
  * Appelé par l'agent ElevenLabs via Server Tool pendant la conversation
@@ -12,6 +29,7 @@ export async function POST(request: Request) {
     const apiKey = request.headers.get("x-api-key");
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     if (webhookSecret && apiKey !== webhookSecret) {
+      console.warn("[orders/create] API key invalide");
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
@@ -35,6 +53,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "restaurant_id requis" },
         { status: 400 }
+      );
+    }
+
+    // Rate limiting
+    if (!checkRateLimit(restaurant_id)) {
+      return NextResponse.json(
+        { error: "Trop de commandes, réessayez dans quelques instants" },
+        { status: 429 }
       );
     }
 

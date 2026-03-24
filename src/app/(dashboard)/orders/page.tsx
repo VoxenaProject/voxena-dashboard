@@ -3,6 +3,7 @@ import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { OrderList } from "@/components/orders/order-list";
 import { OrderDatePicker } from "@/components/orders/order-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
+import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { Order } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,8 @@ export default async function OrdersPage({ searchParams }: Props) {
   const { date } = await searchParams;
   const supabase = createServiceClient();
   const restaurantId = await getCurrentRestaurantId();
+
+  if (!restaurantId) return <NoRestaurant />;
 
   // Date sélectionnée ou aujourd'hui
   const selectedDate = date || new Date().toISOString().split("T")[0];
