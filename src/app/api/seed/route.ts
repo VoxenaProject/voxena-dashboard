@@ -38,16 +38,32 @@ export async function POST() {
   // Supprimer les anciens profils
   await supabase.from("profiles").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  // Créer un owner pour ce restaurant
-  const { data: ownerAuth } = await supabase.auth.admin.createUser({
-    email: "mario@chezmario.be",
-    password: "demo1234",
-    email_confirm: true,
-  });
+  // Helper : créer ou récupérer un user auth
+  async function ensureUser(email: string, password: string) {
+    // Essayer de créer
+    const { data: created } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (created?.user) return created.user.id;
 
-  if (ownerAuth?.user) {
-    await supabase.from("profiles").insert({
-      id: ownerAuth.user.id,
+    // Si déjà existant, le retrouver via listUsers
+    const { data: list } = await supabase.auth.admin.listUsers();
+    const existing = list?.users?.find((u) => u.email === email);
+    if (existing) {
+      // Mettre à jour le mot de passe au cas où
+      await supabase.auth.admin.updateUserById(existing.id, { password });
+      return existing.id;
+    }
+    return null;
+  }
+
+  // Créer un owner pour ce restaurant
+  const ownerId = await ensureUser("mario@chezmario.be", "demo1234");
+  if (ownerId) {
+    await supabase.from("profiles").upsert({
+      id: ownerId,
       email: "mario@chezmario.be",
       full_name: "Mario Rossi",
       role: "owner",
@@ -56,15 +72,10 @@ export async function POST() {
   }
 
   // Créer un admin Voxena
-  const { data: adminAuth } = await supabase.auth.admin.createUser({
-    email: "admin@voxena.pro",
-    password: "admin1234",
-    email_confirm: true,
-  });
-
-  if (adminAuth?.user) {
-    await supabase.from("profiles").insert({
-      id: adminAuth.user.id,
+  const adminId = await ensureUser("admin@voxena.pro", "admin1234");
+  if (adminId) {
+    await supabase.from("profiles").upsert({
+      id: adminId,
       email: "admin@voxena.pro",
       full_name: "Dejvi Prifti",
       role: "admin",
