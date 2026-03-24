@@ -30,6 +30,7 @@ export interface Restaurant {
   whatsapp_phone_id: string | null;
   agent_id: string | null;
   agent_status: AgentStatus;
+  telnyx_phone: string | null;
   owner_name: string | null;
   logo_url: string | null;
   opening_hours: Record<string, { open: string; close: string }[]> | null;
