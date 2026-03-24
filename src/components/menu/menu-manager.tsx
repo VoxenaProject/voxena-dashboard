@@ -49,6 +49,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/ui/empty-state";
+import { EU_ALLERGENS } from "./menu-item-dialog";
 import { MenuCategoryDialog } from "./menu-category-dialog";
 import { MenuItemDialog } from "./menu-item-dialog";
 import { MenuPdfImport } from "./menu-pdf-import";
@@ -212,6 +213,7 @@ export function MenuManager({ initialMenus, initialItems, restaurantId: propRest
     price: number;
     description: string;
     menu_id: string;
+    allergens?: string[];
   }) {
     if (data.id) {
       const res = await fetch("/api/menu-items", {
@@ -437,6 +439,22 @@ export function MenuManager({ initialMenus, initialItems, restaurantId: propRest
                                   <p className="text-xs text-muted-foreground truncate max-w-xs">
                                     {item.description}
                                   </p>
+                                )}
+                                {item.allergens && item.allergens.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {item.allergens.map((a) => {
+                                      const info = EU_ALLERGENS.find((e) => e.id === a);
+                                      return (
+                                        <span
+                                          key={a}
+                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/8 text-[10px] font-medium text-amber-700"
+                                          title={info?.label || a}
+                                        >
+                                          {info?.emoji || "⚠️"} {info?.label || a}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
                                 )}
                               </div>
                             </div>

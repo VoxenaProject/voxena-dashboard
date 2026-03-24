@@ -14,6 +14,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { MenuItem } from "@/lib/supabase/types";
 
+// 14 allergènes obligatoires en UE (Règlement 1169/2011)
+// + émojis pour le côté friendly
+const EU_ALLERGENS = [
+  { id: "gluten", label: "Gluten", emoji: "🌾" },
+  { id: "crustaces", label: "Crustacés", emoji: "🦐" },
+  { id: "oeufs", label: "Œufs", emoji: "🥚" },
+  { id: "poisson", label: "Poisson", emoji: "🐟" },
+  { id: "arachides", label: "Arachides", emoji: "🥜" },
+  { id: "soja", label: "Soja", emoji: "🫘" },
+  { id: "lait", label: "Lait", emoji: "🥛" },
+  { id: "fruits_a_coque", label: "Fruits à coque", emoji: "🌰" },
+  { id: "celeri", label: "Céleri", emoji: "🥬" },
+  { id: "moutarde", label: "Moutarde", emoji: "🟡" },
+  { id: "sesame", label: "Sésame", emoji: "⚪" },
+  { id: "sulfites", label: "Sulfites", emoji: "🍷" },
+  { id: "lupin", label: "Lupin", emoji: "🌸" },
+  { id: "mollusques", label: "Mollusques", emoji: "🦪" },
+];
+
 interface MenuItemDialogProps {
   open: boolean;
   item?: MenuItem;
@@ -25,6 +44,7 @@ interface MenuItemDialogProps {
     price: number;
     description: string;
     menu_id: string;
+    allergens: string[];
   }) => void;
 }
 
@@ -38,12 +58,23 @@ export function MenuItemDialog({
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [allergens, setAllergens] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setName(item?.name || "");
     setPrice(item?.price != null ? String(item.price) : "");
     setDescription(item?.description || "");
+    setAllergens(new Set(item?.allergens || []));
   }, [item, open]);
+
+  function toggleAllergen(id: string) {
+    setAllergens((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,12 +86,13 @@ export function MenuItemDialog({
       price: parseFloat(price) || 0,
       description: description.trim(),
       menu_id: menuId,
+      allergens: Array.from(allergens),
     });
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-heading">
             {item ? "Modifier l'article" : "Nouvel article"}
@@ -97,8 +129,43 @@ export function MenuItemDialog({
                 placeholder="Ingrédients, taille, etc."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
               />
+            </div>
+
+            {/* Allergènes UE */}
+            <div className="space-y-2">
+              <Label>
+                Allergènes
+                <span className="text-muted-foreground font-normal ml-1">
+                  (réglementation UE)
+                </span>
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {EU_ALLERGENS.map((a) => {
+                  const selected = allergens.has(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => toggleAllergen(a.id)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                        selected
+                          ? "bg-amber-500/12 border-amber-500/30 text-amber-700"
+                          : "bg-muted/40 border-transparent text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <span>{a.emoji}</span>
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {allergens.size > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {allergens.size} allergène{allergens.size > 1 ? "s" : ""} sélectionné{allergens.size > 1 ? "s" : ""}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -114,3 +181,6 @@ export function MenuItemDialog({
     </Dialog>
   );
 }
+
+/** Liste des 14 allergènes EU avec émojis — exportée pour affichage dans le menu */
+export { EU_ALLERGENS };

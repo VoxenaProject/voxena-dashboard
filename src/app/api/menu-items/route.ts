@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
-  const { name, menu_id, restaurant_id, price, description, is_available } = body;
+  const { name, menu_id, restaurant_id, price, description, is_available, allergens } = body;
 
   if (!name?.trim() || !menu_id || !restaurant_id) {
     return NextResponse.json(
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       restaurant_id,
       price: price || 0,
       description: description || null,
+      allergens: allergens || [],
       is_available: is_available ?? true,
     })
     .select()
