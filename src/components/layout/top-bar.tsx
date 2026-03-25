@@ -77,8 +77,10 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
           size="icon"
           className="h-8 w-8 text-muted-foreground"
           onClick={() => {
-            localStorage.removeItem("voxena-tour-done");
-            localStorage.removeItem("voxena-tour-step");
+            try {
+              localStorage.removeItem("voxena-tour-done");
+              localStorage.removeItem("voxena-tour-step");
+            } catch { /* Navigation privée */ }
             window.location.href = "/";
           }}
           title="Relancer le tour guidé"

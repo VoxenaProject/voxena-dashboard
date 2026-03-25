@@ -55,11 +55,13 @@ export async function getAdminStats(
   supabase: SupabaseClient
 ): Promise<AdminStats> {
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  // Timezone Brussels pour les dates belges
+  const toBrusselsDate = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "Europe/Brussels" });
+  const today = toBrusselsDate(now);
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
+  const yesterdayStr = toBrusselsDate(yesterday);
 
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -172,7 +174,7 @@ export async function getAdminStats(
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toBrusselsDate(d);
     const dayOrders = allWeekOrders.filter((o: { created_at: string }) =>
       o.created_at.startsWith(dateStr)
     );

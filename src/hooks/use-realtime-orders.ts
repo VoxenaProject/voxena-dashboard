@@ -58,14 +58,32 @@ export function useRealtimeOrders(
     };
   }, [supabase, restaurantId]);
 
-  // Mise à jour optimiste
+  // Mise à jour optimiste avec rollback
   const updateOrderStatus = useCallback(
-    (orderId: string, newStatus: OrderStatus) => {
+    async (orderId: string, newStatus: OrderStatus) => {
+      // Sauvegarder l'état précédent pour rollback
+      const previousOrders = orders;
+      // Update optimiste
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
+
+      try {
+        const res = await fetch(`/api/orders/${orderId}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (!res.ok) {
+          throw new Error("Échec mise à jour");
+        }
+      } catch {
+        // Rollback en cas d'erreur
+        setOrders(previousOrders);
+        throw new Error("Échec mise à jour du statut");
+      }
     },
-    []
+    [orders]
   );
 
   return { orders, updateOrderStatus };

@@ -43,8 +43,42 @@ export async function PATCH(
       .eq("id", id)
       .single();
 
-    if (existingOrder && auth.profile.role !== "admin" && auth.profile.restaurant_id !== existingOrder.restaurant_id) {
+    // Commande introuvable → 404
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
+    }
+
+    // Ownership check
+    if (auth.profile.role !== "admin" && auth.profile.restaurant_id !== existingOrder.restaurant_id) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    // Validation des transitions de statut
+    const validTransitions: Record<string, string[]> = {
+      nouvelle: ["en_preparation", "annulee"],
+      en_preparation: ["prete", "annulee"],
+      prete: ["en_livraison", "recuperee", "annulee"],
+      en_livraison: ["livree", "annulee"],
+      livree: [],
+      recuperee: [],
+      annulee: [],
+    };
+
+    // Récupérer le statut actuel
+    const { data: currentOrder } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (currentOrder) {
+      const allowed = validTransitions[currentOrder.status] || [];
+      if (allowed.length > 0 && !allowed.includes(status)) {
+        return NextResponse.json(
+          { error: `Transition ${currentOrder.status} → ${status} non autorisée` },
+          { status: 400 }
+        );
+      }
     }
 
     const { data: order, error } = await supabase

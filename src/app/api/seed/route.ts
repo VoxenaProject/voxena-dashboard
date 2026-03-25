@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-// POST /api/seed — Nettoie puis injecte des données de démo
+// POST /api/seed — Nettoie puis injecte des données de démo (dev uniquement)
 export async function POST() {
+  // Bloquer en production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Seed désactivé en production" },
+      { status: 403 }
+    );
+  }
   const supabase = createServiceClient();
 
   // ── 0. Nettoyer les anciennes données ──

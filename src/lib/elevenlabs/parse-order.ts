@@ -24,16 +24,22 @@ export function parseOrderItems(raw: string): OrderItem[] {
       /^(\d+)\s*x?\s*(.+?)(?:\s*\((.+)\))?$/
     );
     if (match) {
+      const name = match[2].trim();
+      // Valider que le nom est non vide et raisonnable
+      if (name.length === 0 || name.length > 200) {
+        return { name: "Article inconnu", quantity: parseInt(match[1]) };
+      }
       return {
-        name: match[2].trim(),
-        quantity: parseInt(match[1]),
+        name,
+        quantity: Math.max(1, Math.min(99, parseInt(match[1]))),
         modifications: match[3]
-          ? match[3].split(",").map((m) => m.trim())
+          ? match[3].split(",").map((m) => m.trim()).filter(Boolean)
           : undefined,
       };
     }
-    return { name: trimmed, quantity: 1 };
-  });
+    const safeName = trimmed.length > 0 && trimmed.length <= 200 ? trimmed : "Article inconnu";
+    return { name: safeName, quantity: 1 };
+  }).filter((item) => item.name.length > 0);
 }
 
 /**

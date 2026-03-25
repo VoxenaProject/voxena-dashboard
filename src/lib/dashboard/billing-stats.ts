@@ -150,7 +150,10 @@ export async function getBillingStats(
   const cancelledRestos = allRestos.filter(
     (r) => r.subscription_status === "cancelled"
   );
-  const totalWithStatus = activeRestos.length + cancelledRestos.length;
+  const pausedRestos = allRestos.filter(
+    (r) => r.subscription_status === "paused"
+  );
+  const totalWithStatus = activeRestos.length + cancelledRestos.length + pausedRestos.length;
 
   const mrr = activeRestos.reduce(
     (sum, r) => sum + (Number(r.subscription_amount) || 0),

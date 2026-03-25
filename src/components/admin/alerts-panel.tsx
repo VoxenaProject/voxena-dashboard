@@ -1,22 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Info, X, ArrowRight } from "lucide-react";
 import type { AdminAlert } from "@/lib/dashboard/admin-stats";
 
-export function AlertsPanel({ alerts }: { alerts: AdminAlert[] }) {
-  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+// Clé localStorage pour persister les alertes dismissées (par session)
+const STORAGE_KEY = "voxena-dismissed-alerts";
 
-  const visible = alerts.filter((_, i) => !dismissed.has(i));
+function loadDismissed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch { /* Navigation privée */ }
+  return new Set();
+}
+
+function saveDismissed(set: Set<string>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+  } catch { /* Navigation privée */ }
+}
+
+export function AlertsPanel({ alerts }: { alerts: AdminAlert[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Charger les alertes dismissées depuis localStorage
+  useEffect(() => {
+    setDismissed(loadDismissed());
+  }, []);
+
+  // Créer un ID stable par alerte (titre + description)
+  const alertId = (a: AdminAlert) => `${a.type}:${a.title}`;
+  const visible = alerts.filter((a) => !dismissed.has(alertId(a)));
   if (visible.length === 0) return null;
 
   return (
     <div className="space-y-2 mb-6">
       <AnimatePresence>
         {alerts.map((alert, i) => {
-          if (dismissed.has(i)) return null;
+          const aid = alertId(alert);
+          if (dismissed.has(aid)) return null;
           const isError = alert.type === "error";
           const isWarning = alert.type === "warning";
           return (
@@ -54,7 +79,9 @@ export function AlertsPanel({ alerts }: { alerts: AdminAlert[] }) {
                 <button
                   onClick={(e) => {
                     e.preventDefault();
-                    setDismissed((prev) => new Set(prev).add(i));
+                    const newSet = new Set(dismissed).add(aid);
+                    setDismissed(newSet);
+                    saveDismissed(newSet);
                   }}
                   className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0"
                 >
