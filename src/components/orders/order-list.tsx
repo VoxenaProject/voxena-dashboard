@@ -42,31 +42,42 @@ export function OrderList({
   const [search, setSearch] = useState("");
   const prevCountRef = useRef(initialOrders.length);
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const [showBanner, setShowBanner] = useState<Order | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     audioRef.current = new Audio("/sounds/new-order.mp3");
   }, []);
 
-  // Notification son + toast + flash quand nouvelle commande
+  // Notification son + toast + banner + flash quand nouvelle commande
   useEffect(() => {
     if (orders.length > prevCountRef.current) {
       const newOrder = orders[0];
+
+      // Son de notification (jouer 2x pour attirer l'attention)
       audioRef.current?.play().catch(() => {});
+      setTimeout(() => audioRef.current?.play().catch(() => {}), 1500);
+
+      // Toast persistant
       toast.success(
-        `Nouvelle commande de ${newOrder.customer_name || "Client"}`,
+        `🔔 Nouvelle commande de ${newOrder.customer_name || "Client"} !`,
         {
           description: `${
             newOrder.order_type === "livraison" ? "🚚 Livraison" : "🛍️ À emporter"
-          } — ${(newOrder.items as unknown[])?.length || 0} article(s) — ${
+          } — ${(newOrder.items as unknown[])?.length || 0} article(s)${
             newOrder.total_amount
-              ? Number(newOrder.total_amount).toFixed(0) + "€"
+              ? " — " + Number(newOrder.total_amount).toFixed(0) + "€"
               : ""
           }`,
-          duration: 8000,
+          duration: 15000,
         }
       );
 
+      // Banner plein écran temporaire
+      setShowBanner(newOrder);
+      setTimeout(() => setShowBanner(null), 6000);
+
+      // Flash sur la carte
       setNewOrderIds((prev) => new Set(prev).add(newOrder.id));
       setTimeout(() => {
         setNewOrderIds((prev) => {
@@ -74,7 +85,19 @@ export function OrderList({
           next.delete(newOrder.id);
           return next;
         });
-      }, 4000);
+      }, 8000);
+
+      // Notification navigateur si autorisé
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification(`Nouvelle commande — ${newOrder.customer_name || "Client"}`, {
+            body: `${newOrder.order_type === "livraison" ? "Livraison" : "À emporter"} — ${(newOrder.items as unknown[])?.length || 0} article(s)`,
+            icon: "/favicon.ico",
+          });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission();
+        }
+      }
     }
     prevCountRef.current = orders.length;
   }, [orders.length, orders]);
@@ -166,6 +189,58 @@ export function OrderList({
 
   return (
     <div>
+      {/* Banner nouvelle commande — plein écran */}
+      <AnimatePresence>
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-green bg-gradient-to-r from-green/10 via-green/5 to-emerald-500/10 p-6 shadow-lg"
+          >
+            {/* Cercles décoratifs animés */}
+            <motion.div
+              className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-green/20"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            />
+            <motion.div
+              className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-emerald-500/15"
+              animate={{ scale: [1, 1.3, 1] }}
+              transition={{ repeat: Infinity, duration: 2.5 }}
+            />
+
+            <div className="relative flex items-center gap-4">
+              <motion.div
+                className="w-14 h-14 rounded-2xl bg-green/20 flex items-center justify-center"
+                animate={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ repeat: Infinity, duration: 0.5, repeatDelay: 2 }}
+              >
+                <span className="text-3xl">🔔</span>
+              </motion.div>
+              <div className="flex-1">
+                <p className="text-lg font-bold text-foreground">
+                  Nouvelle commande !
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {showBanner.customer_name || "Client"} —{" "}
+                  {showBanner.order_type === "livraison" ? "🚚 Livraison" : "🛍️ À emporter"}
+                  {showBanner.total_amount ? ` — ${Number(showBanner.total_amount).toFixed(0)}€` : ""}
+                </p>
+              </div>
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="px-4 py-2 bg-green text-white rounded-xl font-semibold text-sm shadow-md"
+              >
+                À traiter
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Pipeline */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" data-tour="orders-pipeline">
         <StatsChip icon={Clock} label="À accepter" count={nouvelleCount} color="text-green" bgColor="bg-green/6" active={nouvelleCount > 0} />
