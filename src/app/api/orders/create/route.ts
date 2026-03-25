@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       customer_phone,
       order_type,
       order_items,
+      items: itemsField,
       special_instructions,
       pickup_time,
       delivery_address,
@@ -64,8 +65,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parser les items
-    const items = parseOrderItems(order_items || "");
+    // Parser les items (accepte "items" ou "order_items" depuis ElevenLabs)
+    const rawItems = order_items || itemsField || "";
+    const items = parseOrderItems(typeof rawItems === "string" ? rawItems : JSON.stringify(rawItems));
     const total_amount = calculateTotal(items);
 
     const supabase = createServiceClient();
