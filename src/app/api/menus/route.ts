@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/api-auth";
 
+// Helper : vérifier que le user a le droit sur ce restaurant
+function checkOwnership(profile: { role: string; restaurant_id: string | null }, restaurantId: string) {
+  if (profile.role === "admin") return true;
+  return profile.restaurant_id === restaurantId;
+}
+
 // Créer une catégorie
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -16,6 +22,10 @@ export async function POST(request: NextRequest) {
       { error: "name et restaurant_id requis" },
       { status: 400 }
     );
+  }
+
+  if (!checkOwnership(auth.profile, restaurant_id)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
   const { data, error } = await supabase
@@ -44,6 +54,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id requis" }, { status: 400 });
   }
 
+  // Vérifier ownership via le restaurant_id du menu
+  const { data: menu } = await supabase.from("menus").select("restaurant_id").eq("id", id).single();
+  if (menu && !checkOwnership(auth.profile, menu.restaurant_id)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("menus")
     .update(updates)
@@ -68,6 +84,12 @@ export async function DELETE(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json({ error: "id requis" }, { status: 400 });
+  }
+
+  // Vérifier ownership
+  const { data: menu } = await supabase.from("menus").select("restaurant_id").eq("id", id).single();
+  if (menu && !checkOwnership(auth.profile, menu.restaurant_id)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
   const { error } = await supabase.from("menus").delete().eq("id", id);

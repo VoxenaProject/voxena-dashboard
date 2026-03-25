@@ -35,10 +35,12 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data);
 }
 
-// Mettre à jour un restaurant
+// Mettre à jour un restaurant (admin ou owner de ce restaurant)
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth();
   if ("error" in auth) return auth.error;
+
+  const { profile } = auth;
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -46,6 +48,26 @@ export async function PATCH(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json({ error: "id requis" }, { status: 400 });
+  }
+
+  // Vérifier ownership : admin peut tout modifier, owner uniquement son restaurant
+  if (profile.role !== "admin" && profile.restaurant_id !== id) {
+    return NextResponse.json(
+      { error: "Accès refusé — ce restaurant ne vous appartient pas" },
+      { status: 403 }
+    );
+  }
+
+  // Les owners ne peuvent pas modifier agent_id, agent_status, subscription_*
+  if (profile.role !== "admin") {
+    delete updates.agent_id;
+    delete updates.agent_status;
+    delete updates.subscription_status;
+    delete updates.subscription_amount;
+    delete updates.subscription_plan;
+    delete updates.subscription_started_at;
+    delete updates.trial_ends_at;
+    delete updates.cancelled_at;
   }
 
   const { data, error } = await supabase

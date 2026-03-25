@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -46,7 +47,7 @@ function getProgress(status: OrderStatus): number {
 
 interface OrderCardProps {
   order: Order;
-  onStatusChange?: (orderId: string, status: OrderStatus) => void;
+  onStatusChange?: (orderId: string, status: OrderStatus) => void | Promise<void>;
   index?: number;
   isNew?: boolean;
 }
@@ -57,6 +58,7 @@ export function OrderCard({
   index = 0,
   isNew = false,
 }: OrderCardProps) {
+  const [isUpdating, setIsUpdating] = React.useState(false);
   const items = (order.items || []) as OrderItem[];
   const itemsSummary = items.map((i) => `${i.quantity}x ${i.name}`).join(", ");
   const next = getNextAction(order.status, order.order_type);
@@ -203,13 +205,20 @@ export function OrderCard({
                 <motion.div whileTap={{ scale: 0.95 }}>
                   <Button
                     size="sm"
+                    disabled={isUpdating}
                     className={`${next.color} text-xs font-semibold shadow-sm`}
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault();
-                      onStatusChange(order.id, next.status);
+                      if (isUpdating) return;
+                      setIsUpdating(true);
+                      try {
+                        await onStatusChange(order.id, next.status);
+                      } finally {
+                        setIsUpdating(false);
+                      }
                     }}
                   >
-                    {next.label}
+                    {isUpdating ? "..." : next.label}
                   </Button>
                 </motion.div>
               )}
