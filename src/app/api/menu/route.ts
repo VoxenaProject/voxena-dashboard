@@ -20,6 +20,13 @@ export async function GET(request: Request) {
 
     const supabase = createServiceClient();
 
+    // Récupérer les infos du restaurant (nom, adresse, horaires)
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("name, address, phone, opening_hours")
+      .eq("id", restaurantId)
+      .single();
+
     // Récupérer les catégories actives avec leurs items disponibles
     const { data: menus, error: menusError } = await supabase
       .from("menus")
@@ -58,7 +65,14 @@ export async function GET(request: Request) {
         })),
     }));
 
-    return NextResponse.json({ restaurant_id: restaurantId, menu });
+    return NextResponse.json({
+      restaurant_id: restaurantId,
+      restaurant_name: restaurant?.name || null,
+      address: restaurant?.address || null,
+      phone: restaurant?.phone || null,
+      opening_hours: restaurant?.opening_hours || null,
+      menu,
+    });
   } catch (err) {
     console.error("[menu] Erreur:", err);
     return NextResponse.json(
