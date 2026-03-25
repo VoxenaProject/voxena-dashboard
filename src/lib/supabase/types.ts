@@ -19,6 +19,7 @@ export interface Profile {
   full_name: string;
   role: UserRole;
   restaurant_id: string | null;
+  onboarding_completed: boolean;
   created_at: string;
 }
 

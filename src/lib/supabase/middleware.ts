@@ -48,16 +48,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Connecté + sur /login → redirect vers dashboard
+  // Connecté + sur /login → redirect vers dashboard (ou onboarding)
   if (user && pathname.startsWith("/login")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, onboarding_completed")
       .eq("id", user.id)
       .single();
 
     const url = request.nextUrl.clone();
-    url.pathname = profile?.role === "admin" ? "/admin" : "/";
+    if (profile?.role === "admin") {
+      url.pathname = "/admin";
+    } else if (profile && !profile.onboarding_completed) {
+      url.pathname = "/onboarding";
+    } else {
+      url.pathname = "/";
+    }
     return NextResponse.redirect(url);
   }
 
@@ -65,16 +71,17 @@ export async function updateSession(request: NextRequest) {
   if (user && !pathname.startsWith("/api")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, onboarding_completed")
       .eq("id", user.id)
       .single();
 
     const isAdmin = profile?.role === "admin";
     const isAdminRoute = pathname.startsWith("/admin");
-    const isRestaurantRoute = !isAdminRoute; // /, /orders, /menu, /settings
+    const isOnboardingRoute = pathname.startsWith("/onboarding");
+    const isRestaurantRoute = !isAdminRoute && !isOnboardingRoute;
 
-    // Admin sur une route restaurant → redirect /admin
-    if (isAdmin && isRestaurantRoute) {
+    // Admin sur une route restaurant ou onboarding → redirect /admin
+    if (isAdmin && (isRestaurantRoute || isOnboardingRoute)) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin";
       return NextResponse.redirect(url);
@@ -84,6 +91,13 @@ export async function updateSession(request: NextRequest) {
     if (!isAdmin && isAdminRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    // Owner pas onboardé → redirect /onboarding (sauf s'il y est déjà)
+    if (!isAdmin && !isOnboardingRoute && profile && !profile.onboarding_completed) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
       return NextResponse.redirect(url);
     }
   }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Mail, User, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,9 @@ export default function NewRestaurantPage() {
     address: "",
     whatsapp_phone: "",
     agent_id: "",
+    // Champs invitation proprietaire
+    owner_email: "",
+    owner_full_name: "",
   });
 
   function handleChange(field: string, value: string) {
@@ -28,22 +31,66 @@ export default function NewRestaurantPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !form.owner_email.trim() || !form.owner_full_name.trim()) return;
 
     setLoading(true);
+
+    // 1. Creer le restaurant
     const res = await fetch("/api/restaurants", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        name: form.name,
+        owner_name: form.owner_name,
+        phone: form.phone,
+        address: form.address,
+        whatsapp_phone: form.whatsapp_phone,
+        agent_id: form.agent_id,
+      }),
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      toast.success("Restaurant créé");
-      router.push(`/admin/restaurants/${data.id}`);
-    } else {
-      toast.error("Erreur lors de la création");
+    if (!res.ok) {
+      toast.error("Erreur lors de la creation du restaurant");
+      setLoading(false);
+      return;
     }
+
+    const restaurant = await res.json();
+
+    // 2. Envoyer l'invitation au proprietaire
+    let inviteSuccess = false;
+    try {
+      const inviteRes = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.owner_email,
+          full_name: form.owner_full_name,
+          restaurant_id: restaurant.id,
+        }),
+      });
+
+      if (inviteRes.ok) {
+        inviteSuccess = true;
+      } else {
+        const inviteData = await inviteRes.json();
+        console.error("Erreur invitation:", inviteData.error);
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'envoi de l'invitation:", err);
+    }
+
+    // 3. Afficher le resultat
+    if (inviteSuccess) {
+      toast.success(`Restaurant cree ! Invitation envoyee a ${form.owner_email}`);
+    } else {
+      toast.warning(
+        "Restaurant cree mais l'invitation n'a pas pu etre envoyee. Vous pouvez inviter le proprietaire manuellement.",
+        { duration: 6000 }
+      );
+    }
+
+    router.push(`/admin/restaurants/${restaurant.id}`);
     setLoading(false);
   }
 
@@ -86,7 +133,7 @@ export default function NewRestaurantPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="owner_name">Nom du propriétaire</Label>
+              <Label htmlFor="owner_name">Nom du proprietaire</Label>
               <Input
                 id="owner_name"
                 value={form.owner_name}
@@ -106,13 +153,61 @@ export default function NewRestaurantPage() {
           </CardContent>
         </Card>
 
+        {/* Invitation proprietaire */}
+        <Card className="border-violet/20">
+          <CardHeader>
+            <CardTitle className="font-heading text-lg flex items-center gap-2">
+              <Mail className="w-4 h-4 text-violet" />
+              Invitation proprietaire
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground -mt-2 mb-2">
+              Un compte sera cree et un email d&apos;invitation sera envoye au proprietaire du restaurant.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="owner_email" className="flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                Email du proprietaire *
+              </Label>
+              <Input
+                id="owner_email"
+                type="email"
+                value={form.owner_email}
+                onChange={(e) => handleChange("owner_email", e.target.value)}
+                placeholder="mario@chezmario.be"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner_full_name" className="flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                Nom complet du proprietaire *
+              </Label>
+              <Input
+                id="owner_full_name"
+                value={form.owner_full_name}
+                onChange={(e) => handleChange("owner_full_name", e.target.value)}
+                placeholder="Mario Rossi"
+                required
+              />
+            </div>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-600">
+                Le proprietaire recevra un email avec un mot de passe temporaire pour se connecter au dashboard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-lg">Contact</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Téléphone</Label>
+              <Label htmlFor="phone">Telephone</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -122,7 +217,7 @@ export default function NewRestaurantPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="whatsapp_phone">Numéro WhatsApp</Label>
+              <Label htmlFor="whatsapp_phone">Numero WhatsApp</Label>
               <Input
                 id="whatsapp_phone"
                 type="tel"
@@ -156,9 +251,13 @@ export default function NewRestaurantPage() {
           </CardContent>
         </Card>
 
-        <Button type="submit" disabled={loading || !form.name.trim()} className="w-full">
+        <Button
+          type="submit"
+          disabled={loading || !form.name.trim() || !form.owner_email.trim() || !form.owner_full_name.trim()}
+          className="w-full"
+        >
           <Save className="w-4 h-4 mr-2" />
-          Créer le restaurant
+          {loading ? "Creation en cours..." : "Creer le restaurant et inviter"}
         </Button>
       </form>
     </div>

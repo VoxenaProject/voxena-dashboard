@@ -41,17 +41,41 @@ export async function POST(request: Request) {
     const data = payload.data;
     const conversationId = data.conversation_id;
 
+    // Idempotency : ignorer si pas de conversation_id
+    if (!conversationId) {
+      console.warn("[webhook] conversation_id manquant, impossible de traiter");
+      return NextResponse.json({ error: "conversation_id requis" }, { status: 400 });
+    }
+
     // Extraire les données collectées par l'agent
     const collected = data.data_collection || data.analysis?.data_collection || {};
 
-    // Chercher si la commande existe déjà (créée par le server tool)
-    const { data: existingOrder } = await supabase
+    // Chercher si la commande existe déjà (créée par le server tool ou un webhook précédent)
+    const { data: existingOrders } = await supabase
       .from("orders")
-      .select("id")
-      .eq("conversation_id", conversationId)
-      .single();
+      .select("id, transcript")
+      .eq("conversation_id", conversationId);
+
+    const existingOrder = existingOrders?.[0] || null;
 
     if (existingOrder) {
+      // Vérifier si c'est un doublon complet (webhook déjà traité avec transcript)
+      if (existingOrder.transcript) {
+        // Doublon détecté — logger et ignorer
+        await supabase.from("agent_logs").insert({
+          restaurant_id: restaurantIdParam || null,
+          conversation_id: conversationId,
+          event_type: "duplicate_webhook_ignored",
+          payload: {
+            existing_order_id: existingOrder.id,
+            message: "Webhook post-call déjà traité pour cette conversation",
+          },
+        });
+
+        console.warn("[webhook] Doublon ignoré pour conversation:", conversationId);
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+
       // Enrichir la commande existante avec le transcript et l'audio
       await supabase
         .from("orders")
@@ -71,7 +95,7 @@ export async function POST(request: Request) {
           ...(collected.pickup_time && { pickup_time: collected.pickup_time }),
           ...(collected.delivery_address && { delivery_address: collected.delivery_address }),
         })
-        .eq("conversation_id", conversationId);
+        .eq("id", existingOrder.id);
 
       await supabase.from("order_events").insert({
         order_id: existingOrder.id,
@@ -92,6 +116,29 @@ export async function POST(request: Request) {
 
       const items = parseOrderItems(collected.order_items || "");
       const total_amount = calculateTotal(items);
+
+      // Idempotency : vérifier une dernière fois avant l'insert (race condition)
+      const { data: raceCheck } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+
+      if (raceCheck) {
+        // Créé entre-temps par un autre webhook concurrent
+        await supabase.from("agent_logs").insert({
+          restaurant_id: restaurantId,
+          conversation_id: conversationId,
+          event_type: "duplicate_webhook_race_condition",
+          payload: {
+            existing_order_id: raceCheck.id,
+            message: "Commande créée par un webhook concurrent",
+          },
+        });
+
+        console.warn("[webhook] Race condition détectée pour conversation:", conversationId);
+        return NextResponse.json({ received: true, duplicate: true });
+      }
 
       const { data: newOrder } = await supabase
         .from("orders")

@@ -39,11 +39,17 @@ export default function LoginPage() {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, onboarding_completed")
         .eq("id", user.id)
         .single();
 
-      router.push(profile?.role === "admin" ? "/admin" : "/");
+      if (profile?.role === "admin") {
+        router.push("/admin");
+      } else if (profile && !profile.onboarding_completed) {
+        router.push("/onboarding");
+      } else {
+        router.push("/");
+      }
     }
     router.refresh();
   }
