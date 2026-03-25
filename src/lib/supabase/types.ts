@@ -4,6 +4,7 @@ export type UserRole = "admin" | "owner";
 export type OrderStatus = "nouvelle" | "en_preparation" | "prete" | "en_livraison" | "livree" | "recuperee" | "annulee";
 export type OrderType = "emporter" | "livraison";
 export type AgentStatus = "active" | "paused" | "error";
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "cancelled" | "paused";
 
 export interface OrderItem {
   name: string;
@@ -34,6 +35,14 @@ export interface Restaurant {
   owner_name: string | null;
   logo_url: string | null;
   opening_hours: Record<string, { open: string; close: string }[]> | null;
+  // Champs abonnement (phase 8 billing)
+  subscription_status: SubscriptionStatus | null;
+  subscription_plan: string | null;
+  subscription_amount: number;
+  subscription_started_at: string | null;
+  trial_ends_at: string | null;
+  cancelled_at: string | null;
+  billing_notes: string | null;
   created_at: string;
 }
 
@@ -108,5 +117,17 @@ export interface AgentLog {
   event_type: string;
   payload: Record<string, unknown> | null;
   error_message: string | null;
+  created_at: string;
+}
+
+// Suivi de consommation mensuelle par restaurant (phase 8 billing)
+export interface UsageRecord {
+  id: string;
+  restaurant_id: string;
+  month: string; // format "YYYY-MM"
+  call_count: number;
+  total_minutes: number;
+  total_cost: number;
+  updated_at: string;
   created_at: string;
 }

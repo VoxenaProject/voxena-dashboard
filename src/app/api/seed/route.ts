@@ -165,85 +165,113 @@ export async function POST() {
     { name: "Nadia R.", phone: "+32 473 66 77 88" },
   ];
 
-  const statuses = ["nouvelle", "en_preparation", "prete", "en_livraison", "recuperee", "livree"] as const;
   const orderTypes = ["emporter", "livraison"] as const;
 
+  // Adresses de livraison bruxelloises
+  const addresses = [
+    "Rue du Marché aux Herbes 12, 1000 Bruxelles",
+    "Avenue Louise 180, 1050 Ixelles",
+    "Chaussée de Waterloo 45, 1060 Saint-Gilles",
+    "Rue Neuve 88, 1000 Bruxelles",
+    "Place du Châtelain 3, 1050 Ixelles",
+    "Boulevard Anspach 150, 1000 Bruxelles",
+    "Rue Antoine Dansaert 67, 1000 Bruxelles",
+  ];
+
+  const instructions = [
+    null, null, null, null,
+    "Sans oignons s'il vous plaît",
+    "Allergie aux noix — attention",
+    "Sonner 2 fois au parlophone",
+    "Extra sauce tomate",
+    "Code porte : 4521",
+    "Pizza bien cuite svp",
+  ];
+
+  // Helper pour créer une commande
+  function makeOrder(
+    status: string,
+    orderType: "emporter" | "livraison",
+    minutesAgo: number,
+  ) {
+    const d = new Date(now.getTime() - minutesAgo * 60000);
+    const client = clients[Math.floor(Math.random() * clients.length)];
+    const orderItems = [];
+    const numItems = 1 + Math.floor(Math.random() * 4);
+    for (let k = 0; k < numItems; k++) {
+      const item = items[Math.floor(Math.random() * items.length)];
+      const qty = 1 + Math.floor(Math.random() * 2);
+      orderItems.push({ name: item.name, quantity: qty, price: item.price });
+    }
+    const total = orderItems.reduce((s, i) => s + i.quantity * i.price, 0);
+    const estimateMin = 20 + Math.floor(Math.random() * 40);
+    const estimateTime = new Date(d.getTime() + estimateMin * 60000);
+    const estimateStr = `${estimateTime.getHours().toString().padStart(2, "0")}:${estimateTime.getMinutes().toString().padStart(2, "0")}`;
+
+    return {
+      restaurant_id: rid,
+      customer_name: client.name,
+      customer_phone: client.phone,
+      items: orderItems,
+      total_amount: total,
+      order_type: orderType,
+      status,
+      created_at: d.toISOString(),
+      pickup_time: orderType === "emporter" ? estimateStr : null,
+      delivery_time_estimate: orderType === "livraison" ? estimateStr : null,
+      delivery_address: orderType === "livraison"
+        ? addresses[Math.floor(Math.random() * addresses.length)]
+        : null,
+      special_instructions: instructions[Math.floor(Math.random() * instructions.length)],
+    };
+  }
+
   const orders = [];
-  for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
-    // 3 à 8 commandes par jour
-    const count = 3 + Math.floor(Math.random() * 6);
+
+  // ── Commandes d'aujourd'hui — TOUS les statuts garantis ──
+
+  // 2 nouvelles commandes (viennent d'arriver)
+  orders.push(makeOrder("nouvelle", "emporter", 5));
+  orders.push(makeOrder("nouvelle", "livraison", 12));
+
+  // 2 en préparation
+  orders.push(makeOrder("en_preparation", "emporter", 25));
+  orders.push(makeOrder("en_preparation", "livraison", 30));
+
+  // 2 prêtes (une emporter, une livraison)
+  orders.push(makeOrder("prete", "emporter", 45));
+  orders.push(makeOrder("prete", "livraison", 50));
+
+  // 2 en livraison (uniquement livraison)
+  orders.push(makeOrder("en_livraison", "livraison", 60));
+  orders.push(makeOrder("en_livraison", "livraison", 75));
+
+  // 3 récupérées (emporter terminé)
+  orders.push(makeOrder("recuperee", "emporter", 90));
+  orders.push(makeOrder("recuperee", "emporter", 120));
+  orders.push(makeOrder("recuperee", "emporter", 150));
+
+  // 3 livrées
+  orders.push(makeOrder("livree", "livraison", 100));
+  orders.push(makeOrder("livree", "livraison", 140));
+  orders.push(makeOrder("livree", "livraison", 180));
+
+  // 2 annulées
+  orders.push(makeOrder("annulee", "emporter", 110));
+  orders.push(makeOrder("annulee", "livraison", 160));
+
+  // ── Commandes des 6 jours précédents (historique) ──
+  for (let dayOffset = 1; dayOffset <= 6; dayOffset++) {
+    const count = 4 + Math.floor(Math.random() * 5);
     for (let j = 0; j < count; j++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - dayOffset);
-      d.setHours(11 + Math.floor(Math.random() * 10), Math.floor(Math.random() * 60));
-
-      const client = clients[Math.floor(Math.random() * clients.length)];
-      const orderItems = [];
-      const numItems = 1 + Math.floor(Math.random() * 4);
-      for (let k = 0; k < numItems; k++) {
-        const item = items[Math.floor(Math.random() * items.length)];
-        const qty = 1 + Math.floor(Math.random() * 2);
-        orderItems.push({ name: item.name, quantity: qty, price: item.price });
-      }
-
-      const total = orderItems.reduce((s, i) => s + i.quantity * i.price, 0);
-      const orderType = orderTypes[Math.floor(Math.random() * 2)];
-
-      // Générer heure estimée (30-60 min après la commande)
-      const estimateMin = 20 + Math.floor(Math.random() * 40);
-      const estimateTime = new Date(d.getTime() + estimateMin * 60000);
-      const estimateStr = `${estimateTime.getHours().toString().padStart(2, "0")}:${estimateTime.getMinutes().toString().padStart(2, "0")}`;
-
-      // Adresses de livraison bruxelloises
-      const addresses = [
-        "Rue du Marché aux Herbes 12, 1000 Bruxelles",
-        "Avenue Louise 180, 1050 Ixelles",
-        "Chaussée de Waterloo 45, 1060 Saint-Gilles",
-        "Rue Neuve 88, 1000 Bruxelles",
-        "Place du Châtelain 3, 1050 Ixelles",
-        "Boulevard Anspach 150, 1000 Bruxelles",
-        "Rue Antoine Dansaert 67, 1000 Bruxelles",
-      ];
-
-      // Instructions spéciales aléatoires
-      const instructions = [
-        null, null, null, null, // La plupart sans instructions
-        "Sans oignons s'il vous plaît",
-        "Allergie aux noix — attention",
-        "Sonner 2 fois au parlophone",
-        "Extra sauce tomate",
-        "Code porte : 4521",
-        "Pizza bien cuite svp",
-      ];
-
-      // Les commandes anciennes sont terminées, les récentes ont des statuts variés
-      let status: (typeof statuses)[number];
-      if (dayOffset > 0) {
-        status = Math.random() > 0.15 ? "recuperee" : "livree";
-      } else {
-        status = statuses[Math.floor(Math.random() * statuses.length)];
-        // "en_livraison" uniquement pour les livraisons
-        if (status === "en_livraison" && orderType !== "livraison") {
-          status = "prete";
-        }
-      }
-
-      orders.push({
-        restaurant_id: rid,
-        customer_name: client.name,
-        customer_phone: client.phone,
-        items: orderItems,
-        total_amount: total,
-        order_type: orderType,
-        status,
-        created_at: d.toISOString(),
-        pickup_time: orderType === "emporter" ? estimateStr : null,
-        delivery_time_estimate: orderType === "livraison" ? estimateStr : null,
-        delivery_address: orderType === "livraison"
-          ? addresses[Math.floor(Math.random() * addresses.length)]
-          : null,
-        special_instructions: instructions[Math.floor(Math.random() * instructions.length)],
-      });
+      const minutesAgo = dayOffset * 24 * 60 + Math.floor(Math.random() * 720);
+      const type = orderTypes[Math.floor(Math.random() * 2)];
+      // Commandes passées : terminées ou annulées
+      const pastStatuses = type === "livraison"
+        ? ["livree", "livree", "livree", "annulee"]
+        : ["recuperee", "recuperee", "recuperee", "annulee"];
+      const status = pastStatuses[Math.floor(Math.random() * pastStatuses.length)];
+      orders.push(makeOrder(status, type, minutesAgo));
     }
   }
 

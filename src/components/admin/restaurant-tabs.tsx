@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Save, Loader2 } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  Search,
+  CreditCard,
+  Pause,
+  Play,
+  XCircle,
+  Receipt,
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,10 +20,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { AgentConfigCard } from "./agent-config-card";
+import { OnboardingChecklist } from "./onboarding-checklist";
+import { SubscriptionBadge } from "./subscription-badge";
 import { OpeningHoursEditor } from "@/components/settings/opening-hours-editor";
-import type { Restaurant, Order, OrderItem } from "@/lib/supabase/types";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import type { Restaurant, Order, OrderItem, UsageRecord } from "@/lib/supabase/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -23,16 +35,17 @@ interface RestaurantTabsProps {
   orders: Order[];
   menus: { name: string; menu_items: { name: string; price: number; is_available: boolean }[] }[];
   logs: { id: string; event_type: string; error_message: string | null; created_at: string; conversation_id: string | null; payload: Record<string, unknown> | null }[];
+  usageRecords: UsageRecord[];
 }
 
-export function RestaurantTabs({ restaurant, orders, menus, logs }: RestaurantTabsProps) {
+export function RestaurantTabs({ restaurant, orders, menus, logs, usageRecords }: RestaurantTabsProps) {
   const [tab, setTab] = useState("overview");
 
   return (
     <div>
       <Tabs value={tab} onValueChange={setTab} className="mb-6">
         <TabsList>
-          <TabsTrigger value="overview">Aperçu</TabsTrigger>
+          <TabsTrigger value="overview">Aper\u00e7u</TabsTrigger>
           <TabsTrigger value="edit">Modifier</TabsTrigger>
           <TabsTrigger value="menu">
             Menu
@@ -45,6 +58,10 @@ export function RestaurantTabs({ restaurant, orders, menus, logs }: RestaurantTa
           <TabsTrigger value="logs">
             Logs
             <span className="ml-1 text-xs opacity-60">{logs.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="billing">
+            <CreditCard className="w-3.5 h-3.5 mr-1" />
+            Facturation
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -60,12 +77,13 @@ export function RestaurantTabs({ restaurant, orders, menus, logs }: RestaurantTa
         {tab === "menu" && <MenuTab menus={menus} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
         {tab === "logs" && <LogsTab logs={logs} />}
+        {tab === "billing" && <BillingTab restaurant={restaurant} usageRecords={usageRecords} orders={orders} />}
       </motion.div>
     </div>
   );
 }
 
-// ── Overview Tab ──
+// \u2500\u2500 Overview Tab \u2500\u2500
 
 function OverviewTab({
   orders,
@@ -76,30 +94,54 @@ function OverviewTab({
   menus: RestaurantTabsProps["menus"];
   restaurant: Restaurant;
 }) {
+  const today = new Date().toISOString().split("T")[0];
+  const todayOrders = orders.filter((o) => o.created_at.startsWith(today));
   const totalItems = menus.reduce((s, m) => s + m.menu_items.length, 0);
-  const todayRevenue = orders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+  const todayRevenue = todayOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+
+  // Donn\u00e9es onboarding
+  const hasMenu = menus.length > 0 && menus.some((m) => m.menu_items.length > 0);
+  const onboardingData = {
+    hasPhone: !!restaurant.phone,
+    hasMenu,
+    hasAgentId: !!restaurant.agent_id,
+    hasWhatsApp: !!restaurant.whatsapp_phone,
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
+        {/* KPIs */}
         <div className="grid grid-cols-3 gap-4">
           <Card className="shadow-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold">{orders.length}</p>
-            <p className="text-xs text-muted-foreground">Commandes</p>
+            <p className="font-heading text-2xl font-bold">{todayOrders.length}</p>
+            <p className="text-xs text-muted-foreground">Commandes aujourd&apos;hui</p>
           </Card>
           <Card className="shadow-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold">{todayRevenue.toFixed(0)}€</p>
-            <p className="text-xs text-muted-foreground">Revenus</p>
+            <p className="font-heading text-2xl font-bold">{todayRevenue.toFixed(0)}\u20ac</p>
+            <p className="text-xs text-muted-foreground">Revenus aujourd&apos;hui</p>
           </Card>
           <Card className="shadow-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold">{totalItems}</p>
-            <p className="text-xs text-muted-foreground">Articles au menu</p>
+            <div className="flex items-center justify-center gap-2 mb-0.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  restaurant.agent_status === "active"
+                    ? "bg-green"
+                    : restaurant.agent_status === "error"
+                    ? "bg-red-500"
+                    : "bg-amber-500"
+                }`}
+              />
+              <p className="font-heading text-lg font-bold capitalize">{restaurant.agent_status}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Statut agent</p>
           </Card>
         </div>
 
+        {/* Derni\u00e8res commandes */}
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Dernières commandes</CardTitle>
+            <CardTitle className="text-sm font-medium">Derni\u00e8res commandes</CardTitle>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
@@ -111,13 +153,13 @@ function OverviewTab({
                     <div>
                       <p className="text-sm font-medium">{order.customer_name || "Client"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {(order.items as OrderItem[]).length} article{(order.items as OrderItem[]).length > 1 ? "s" : ""} ·{" "}
+                        {(order.items as OrderItem[]).length} article{(order.items as OrderItem[]).length > 1 ? "s" : ""} \u00b7{" "}
                         {format(new Date(order.created_at), "d MMM HH:mm", { locale: fr })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       {order.total_amount != null && (
-                        <span className="font-mono text-sm font-bold">{Number(order.total_amount).toFixed(0)}€</span>
+                        <span className="font-mono text-sm font-bold">{Number(order.total_amount).toFixed(0)}\u20ac</span>
                       )}
                       <OrderStatusBadge status={order.status} orderType={order.order_type} />
                     </div>
@@ -129,7 +171,9 @@ function OverviewTab({
         </Card>
       </div>
 
+      {/* Sidebar */}
       <div className="space-y-6">
+        {/* Informations */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Informations</CardTitle>
@@ -150,13 +194,33 @@ function OverviewTab({
           </CardContent>
         </Card>
 
+        {/* Checklist onboarding */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Onboarding</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OnboardingChecklist restaurant={onboardingData} />
+          </CardContent>
+        </Card>
+
+        {/* Stats menu */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Menu</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p>{menus.length} cat\u00e9gorie{menus.length > 1 ? "s" : ""} \u00b7 {totalItems} article{totalItems > 1 ? "s" : ""}</p>
+          </CardContent>
+        </Card>
+
         <AgentConfigCard restaurantId={restaurant.id} agentId={restaurant.agent_id} />
       </div>
     </div>
   );
 }
 
-// ── Edit Tab ──
+// \u2500\u2500 Edit Tab \u2500\u2500
 
 function EditTab({ restaurant }: { restaurant: Restaurant }) {
   const [loading, setLoading] = useState(false);
@@ -166,6 +230,7 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
     phone: restaurant.phone || "",
     address: restaurant.address || "",
     whatsapp_phone: restaurant.whatsapp_phone || "",
+    whatsapp_phone_id: restaurant.whatsapp_phone_id || "",
     telnyx_phone: restaurant.telnyx_phone || "",
     agent_id: restaurant.agent_id || "",
   });
@@ -184,7 +249,7 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
       body: JSON.stringify({ id: restaurant.id, ...form, opening_hours: openingHours }),
     });
     if (res.ok) {
-      toast.success("Restaurant mis à jour");
+      toast.success("Restaurant mis \u00e0 jour");
     } else {
       toast.error("Erreur lors de la sauvegarde");
     }
@@ -202,7 +267,7 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
               <Input value={form.name} onChange={(e) => handleChange("name", e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Propriétaire</Label>
+              <Label>Propri\u00e9taire</Label>
               <Input value={form.owner_name} onChange={(e) => handleChange("owner_name", e.target.value)} />
             </div>
           </div>
@@ -214,11 +279,11 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
       </Card>
 
       <Card className="shadow-card">
-        <CardHeader><CardTitle className="text-sm font-medium">Contact & Téléphonie</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm font-medium">Contact & T\u00e9l\u00e9phonie</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Téléphone</Label>
+              <Label>T\u00e9l\u00e9phone</Label>
               <Input type="tel" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -227,9 +292,14 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Numéro Telnyx (commandes)</Label>
+            <Label>WhatsApp Phone ID</Label>
+            <Input value={form.whatsapp_phone_id} onChange={(e) => handleChange("whatsapp_phone_id", e.target.value)} placeholder="ID t\u00e9l\u00e9phone WhatsApp Business API" className="font-mono" />
+            <p className="text-xs text-muted-foreground">Identifiant du t\u00e9l\u00e9phone WhatsApp Business API</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Num\u00e9ro Telnyx (commandes)</Label>
             <Input type="tel" value={form.telnyx_phone} onChange={(e) => handleChange("telnyx_phone", e.target.value)} placeholder="+32..." className="font-mono" />
-            <p className="text-xs text-muted-foreground">Numéro dédié pour les commandes vocales de ce restaurant</p>
+            <p className="text-xs text-muted-foreground">Num\u00e9ro d\u00e9di\u00e9 pour les commandes vocales de ce restaurant</p>
           </div>
         </CardContent>
       </Card>
@@ -241,6 +311,9 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
             <Label>Agent ID (ElevenLabs)</Label>
             <Input value={form.agent_id} onChange={(e) => handleChange("agent_id", e.target.value)} className="font-mono" placeholder="ID de l'agent ElevenLabs" />
           </div>
+          {form.agent_id && (
+            <AgentConfigCard restaurantId={restaurant.id} agentId={form.agent_id} />
+          )}
         </CardContent>
       </Card>
 
@@ -259,13 +332,13 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-// ── Menu Tab ──
+// \u2500\u2500 Menu Tab \u2500\u2500
 
 function MenuTab({ menus }: { menus: RestaurantTabsProps["menus"] }) {
   return (
     <div className="space-y-4">
       {menus.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Aucun menu configuré</p>
+        <p className="text-sm text-muted-foreground text-center py-8">Aucun menu configur\u00e9</p>
       ) : (
         menus.map((menu, i) => (
           <Card key={i} className="shadow-card">
@@ -279,7 +352,7 @@ function MenuTab({ menus }: { menus: RestaurantTabsProps["menus"] }) {
               {menu.menu_items.map((item, j) => (
                 <div key={j} className="flex items-center justify-between py-1.5 text-sm">
                   <span className={!item.is_available ? "text-muted-foreground line-through" : ""}>{item.name}</span>
-                  <span className="font-mono text-xs">{Number(item.price).toFixed(2)}€</span>
+                  <span className="font-mono text-xs">{Number(item.price).toFixed(2)}\u20ac</span>
                 </div>
               ))}
             </CardContent>
@@ -290,15 +363,72 @@ function MenuTab({ menus }: { menus: RestaurantTabsProps["menus"] }) {
   );
 }
 
-// ── Orders Tab ──
+// \u2500\u2500 Orders Tab \u2500\u2500
 
 function OrdersTab({ orders }: { orders: Order[] }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredOrders = orders.filter((o) => {
+    // Filtre texte
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchName = o.customer_name?.toLowerCase().includes(q);
+      const matchPhone = o.customer_phone?.includes(q);
+      const matchItems = (o.items as OrderItem[]).some((i) => i.name.toLowerCase().includes(q));
+      if (!matchName && !matchPhone && !matchItems) return false;
+    }
+    // Filtre statut
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    return true;
+  });
+
+  const statuses = ["all", "nouvelle", "en_preparation", "prete", "livree", "recuperee", "annulee"];
+  const statusLabels: Record<string, string> = {
+    all: "Toutes",
+    nouvelle: "Nouvelle",
+    en_preparation: "En cuisine",
+    prete: "Pr\u00eate",
+    livree: "Livr\u00e9e",
+    recuperee: "R\u00e9cup\u00e9r\u00e9e",
+    annulee: "Annul\u00e9e",
+  };
+
   return (
-    <div className="space-y-2">
-      {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Aucune commande récente</p>
+    <div className="space-y-4">
+      {/* Filtres */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un client, t\u00e9l\u00e9phone, article..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {statuses.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                statusFilter === s
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {statusLabels[s] || s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Liste */}
+      {filteredOrders.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Aucune commande trouv\u00e9e</p>
       ) : (
-        orders.map((order) => (
+        filteredOrders.map((order) => (
           <Card key={order.id} className="shadow-card p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -310,11 +440,12 @@ function OrdersTab({ orders }: { orders: Order[] }) {
                   {(order.items as OrderItem[]).map((i) => `${i.quantity}x ${i.name}`).join(", ")}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {format(new Date(order.created_at), "d MMM à HH:mm", { locale: fr })}
+                  {format(new Date(order.created_at), "d MMM \u00e0 HH:mm", { locale: fr })}
+                  {order.customer_phone && ` \u00b7 ${order.customer_phone}`}
                 </p>
               </div>
               {order.total_amount != null && (
-                <span className="font-mono text-base font-bold">{Number(order.total_amount).toFixed(0)}€</span>
+                <span className="font-mono text-base font-bold">{Number(order.total_amount).toFixed(0)}\u20ac</span>
               )}
             </div>
           </Card>
@@ -324,7 +455,7 @@ function OrdersTab({ orders }: { orders: Order[] }) {
   );
 }
 
-// ── Logs Tab ──
+// \u2500\u2500 Logs Tab \u2500\u2500
 
 function LogsTab({ logs }: { logs: RestaurantTabsProps["logs"] }) {
   return (
@@ -362,6 +493,306 @@ function LogsTab({ logs }: { logs: RestaurantTabsProps["logs"] }) {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+// \u2500\u2500 Billing Tab \u2500\u2500
+
+function BillingTab({
+  restaurant,
+  usageRecords,
+  orders,
+}: {
+  restaurant: Restaurant;
+  usageRecords: UsageRecord[];
+  orders: Order[];
+}) {
+  const [loading, setLoading] = useState(false);
+  const [billingNotes, setBillingNotes] = useState(restaurant.billing_notes || "");
+
+  // Mois courant
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentUsage = usageRecords.find((u) => u.month === currentMonth);
+
+  // Revenus g\u00e9n\u00e9r\u00e9s ce mois (commandes du restaurant)
+  const monthOrders = orders.filter((o) => o.created_at.startsWith(currentMonth));
+  const monthRevenue = monthOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+
+  // Rentabilit\u00e9 : revenus abonnement vs co\u00fbt usage
+  const subscriptionAmount = restaurant.subscription_amount || 0;
+  const usageCost = currentUsage?.total_cost || 0;
+  const profit = subscriptionAmount - usageCost;
+
+  // Actions abonnement
+  async function handleSubscriptionAction(action: "pause" | "resume" | "cancel") {
+    const confirmMessages: Record<string, string> = {
+      pause: "Mettre l'abonnement en pause ?",
+      resume: "R\u00e9activer l'abonnement ?",
+      cancel: "R\u00e9silier l'abonnement ? Cette action est irr\u00e9versible.",
+    };
+    if (!confirm(confirmMessages[action])) return;
+
+    setLoading(true);
+    const statusMap: Record<string, string> = {
+      pause: "paused",
+      resume: "active",
+      cancel: "cancelled",
+    };
+
+    const body: Record<string, unknown> = {
+      id: restaurant.id,
+      subscription_status: statusMap[action],
+    };
+    if (action === "cancel") {
+      body.cancelled_at = new Date().toISOString();
+    }
+
+    const res = await fetch("/api/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      toast.success(
+        action === "pause"
+          ? "Abonnement mis en pause"
+          : action === "resume"
+          ? "Abonnement r\u00e9activ\u00e9"
+          : "Abonnement r\u00e9sili\u00e9"
+      );
+    } else {
+      toast.error("Erreur lors de la mise \u00e0 jour");
+    }
+    setLoading(false);
+  }
+
+  // Sauvegarder notes de facturation
+  async function handleSaveNotes() {
+    setLoading(true);
+    const res = await fetch("/api/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: restaurant.id, billing_notes: billingNotes }),
+    });
+    if (res.ok) {
+      toast.success("Notes sauvegard\u00e9es");
+    } else {
+      toast.error("Erreur");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {/* Statut abonnement */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Abonnement</CardTitle>
+            <SubscriptionBadge status={restaurant.subscription_status} />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Plan</p>
+              <p className="font-medium">{restaurant.subscription_plan || "Non d\u00e9fini"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Montant mensuel</p>
+              <p className="font-mono font-bold">{subscriptionAmount.toFixed(0)}\u20ac</p>
+            </div>
+            {restaurant.subscription_started_at && (
+              <div>
+                <p className="text-muted-foreground text-xs">D\u00e9but</p>
+                <p className="text-sm">{format(new Date(restaurant.subscription_started_at), "d MMMM yyyy", { locale: fr })}</p>
+              </div>
+            )}
+            {restaurant.trial_ends_at && (
+              <div>
+                <p className="text-muted-foreground text-xs">Fin d&apos;essai</p>
+                <p className="text-sm">{format(new Date(restaurant.trial_ends_at), "d MMMM yyyy", { locale: fr })}</p>
+              </div>
+            )}
+            {restaurant.cancelled_at && (
+              <div>
+                <p className="text-muted-foreground text-xs">R\u00e9sili\u00e9 le</p>
+                <p className="text-sm text-red-500">{format(new Date(restaurant.cancelled_at), "d MMMM yyyy", { locale: fr })}</p>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Boutons gestion abonnement */}
+          <div className="flex gap-2">
+            {restaurant.subscription_status === "active" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => handleSubscriptionAction("pause")}
+                disabled={loading}
+              >
+                <Pause className="w-3.5 h-3.5" />
+                Mettre en pause
+              </Button>
+            )}
+            {restaurant.subscription_status === "paused" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => handleSubscriptionAction("resume")}
+                disabled={loading}
+              >
+                <Play className="w-3.5 h-3.5" />
+                R\u00e9activer
+              </Button>
+            )}
+            {restaurant.subscription_status &&
+              restaurant.subscription_status !== "cancelled" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-destructive hover:text-destructive"
+                  onClick={() => handleSubscriptionAction("cancel")}
+                  disabled={loading}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  R\u00e9silier
+                </Button>
+              )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Usage du mois courant */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Receipt className="w-4 h-4" />
+            Usage du mois ({currentMonth})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {currentUsage ? (
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="font-heading text-xl font-bold">{currentUsage.total_minutes.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">Minutes</p>
+              </div>
+              <div>
+                <p className="font-heading text-xl font-bold">{currentUsage.call_count}</p>
+                <p className="text-xs text-muted-foreground">Appels</p>
+              </div>
+              <div>
+                <p className="font-heading text-xl font-bold font-mono">{currentUsage.total_cost.toFixed(2)}\u20ac</p>
+                <p className="text-xs text-muted-foreground">Co\u00fbt</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Aucune donn\u00e9e d&apos;usage pour ce mois
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Rentabilit\u00e9 */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Rentabilit\u00e9</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="font-heading text-xl font-bold font-mono text-green">{subscriptionAmount.toFixed(0)}\u20ac</p>
+              <p className="text-xs text-muted-foreground">Abonnement</p>
+            </div>
+            <div>
+              <p className="font-heading text-xl font-bold font-mono text-red-500">{usageCost.toFixed(2)}\u20ac</p>
+              <p className="text-xs text-muted-foreground">Co\u00fbt usage</p>
+            </div>
+            <div>
+              <p className={`font-heading text-xl font-bold font-mono ${profit >= 0 ? "text-green" : "text-red-500"}`}>
+                {profit >= 0 ? "+" : ""}{profit.toFixed(2)}\u20ac
+              </p>
+              <p className="text-xs text-muted-foreground">Marge</p>
+            </div>
+          </div>
+          <Separator className="my-4" />
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              {monthOrders.length} commandes ce mois \u00b7 {monthRevenue.toFixed(0)}\u20ac de CA g\u00e9n\u00e9r\u00e9 pour le restaurant
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Historique usage */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Historique d&apos;usage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {usageRecords.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Aucun historique d&apos;usage disponible
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60">
+                    <th className="text-left py-2 text-xs font-medium text-muted-foreground">Mois</th>
+                    <th className="text-right py-2 text-xs font-medium text-muted-foreground">Appels</th>
+                    <th className="text-right py-2 text-xs font-medium text-muted-foreground">Minutes</th>
+                    <th className="text-right py-2 text-xs font-medium text-muted-foreground">Co\u00fbt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usageRecords.map((record) => (
+                    <tr key={record.id} className="border-b border-border/30 last:border-0">
+                      <td className="py-2 font-medium">{record.month}</td>
+                      <td className="py-2 text-right font-mono">{record.call_count}</td>
+                      <td className="py-2 text-right font-mono">{record.total_minutes.toFixed(1)}</td>
+                      <td className="py-2 text-right font-mono">{record.total_cost.toFixed(2)}\u20ac</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Notes de facturation */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Notes de facturation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={billingNotes}
+            onChange={(e) => setBillingNotes(e.target.value)}
+            placeholder="Notes internes sur la facturation de ce restaurant..."
+            rows={4}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveNotes}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            Sauvegarder les notes
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

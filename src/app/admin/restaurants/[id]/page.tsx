@@ -7,8 +7,9 @@ import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RestaurantAdminActions } from "@/components/admin/restaurant-admin-actions";
 import { RestaurantTabs } from "@/components/admin/restaurant-tabs";
+import { SubscriptionBadge } from "@/components/admin/subscription-badge";
 import { PageWrapper } from "@/components/ui/page-wrapper";
-import type { Restaurant, Order } from "@/lib/supabase/types";
+import type { Restaurant, Order, UsageRecord } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,27 +21,46 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [{ data: restaurant }, { data: orders }, { data: menus }, { data: logs }] =
-    await Promise.all([
-      supabase.from("restaurants").select("*").eq("id", id).single(),
-      supabase
-        .from("orders")
-        .select("*")
-        .eq("restaurant_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("menus")
-        .select("name, menu_items(name, price, is_available)")
-        .eq("restaurant_id", id)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("agent_logs")
-        .select("id, event_type, error_message, created_at, conversation_id, payload")
-        .eq("restaurant_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ]);
+  const [
+    { data: restaurant },
+    { data: orders },
+    { data: menus },
+    { data: logs },
+    usageResult,
+  ] = await Promise.all([
+    supabase.from("restaurants").select("*").eq("id", id).single(),
+    supabase
+      .from("orders")
+      .select("*")
+      .eq("restaurant_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("menus")
+      .select("name, menu_items(name, price, is_available)")
+      .eq("restaurant_id", id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("agent_logs")
+      .select("id, event_type, error_message, created_at, conversation_id, payload")
+      .eq("restaurant_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    // R\u00e9cup\u00e9rer les 12 derniers mois d'usage (table peut ne pas exister)
+    supabase
+      .from("usage_records")
+      .select("*")
+      .eq("restaurant_id", id)
+      .order("month", { ascending: false })
+      .limit(12)
+      .then((res) => {
+        // Si la table n'existe pas, retourner un tableau vide
+        if (res.error) return { data: [] };
+        return res;
+      }),
+  ]);
+
+  const usageRecords = usageResult.data;
 
   if (!restaurant) notFound();
 
@@ -74,6 +94,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
             <Badge variant="outline" className="text-xs capitalize">
               {resto.agent_status}
             </Badge>
+            <SubscriptionBadge status={resto.subscription_status} />
             {resto.telnyx_phone && (
               <Badge variant="outline" className="text-[10px] font-mono">
                 {resto.telnyx_phone}
@@ -81,7 +102,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Créé le {format(new Date(resto.created_at), "d MMMM yyyy", { locale: fr })}
+            Cr\u00e9\u00e9 le {format(new Date(resto.created_at), "d MMMM yyyy", { locale: fr })}
           </p>
         </div>
         <RestaurantAdminActions restaurant={resto} />
@@ -92,6 +113,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
         orders={(orders as Order[]) || []}
         menus={(menus || []) as { name: string; menu_items: { name: string; price: number; is_available: boolean }[] }[]}
         logs={(logs || []) as { id: string; event_type: string; error_message: string | null; created_at: string; conversation_id: string | null; payload: Record<string, unknown> | null }[]}
+        usageRecords={(usageRecords as UsageRecord[]) || []}
       />
     </PageWrapper>
   );

@@ -16,7 +16,7 @@ interface KpiCardProps {
   icon: LucideIcon;
   trend?: { value: number; isPositive: boolean };
   sparklineData?: number[];
-  accentColor?: "violet" | "green" | "blue" | "amber";
+  accentColor?: "violet" | "green" | "blue" | "amber" | "red";
   delay?: number;
 }
 
@@ -40,6 +40,11 @@ const accentColors = {
     iconBg: "bg-amber-500/10",
     iconText: "text-amber-600",
     sparkline: "#f59e0b",
+  },
+  red: {
+    iconBg: "bg-red-500/10",
+    iconText: "text-red-500",
+    sparkline: "#ef4444",
   },
 };
 

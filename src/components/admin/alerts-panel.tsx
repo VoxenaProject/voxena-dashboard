@@ -28,7 +28,7 @@ export function AlertsPanel({ alerts }: { alerts: AdminAlert[] }) {
               transition={{ duration: 0.2 }}
             >
               <Link
-                href={alert.link}
+                href={alert.link || "#"}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
                   isError
                     ? "bg-red-500/6 border-red-500/15 hover:bg-red-500/10"

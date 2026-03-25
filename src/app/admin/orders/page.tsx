@@ -14,7 +14,7 @@ export default async function AdminOrdersPage() {
     .select("id, name")
     .order("name");
 
-  // Dernières 200 commandes
+  // Dernières 200 commandes avec nom du restaurant
   const { data: orders } = await supabase
     .from("orders")
     .select("*, restaurants(name)")
@@ -32,8 +32,14 @@ export default async function AdminOrdersPage() {
         </p>
       </div>
       <AdminOrderList
-        orders={(orders || []) as (Order & { restaurants: { name: string } | null })[]}
-        restaurants={(restaurants || []) as { id: string; name: string }[]}
+        orders={
+          (orders || []) as (Order & {
+            restaurants: { name: string } | null;
+          })[]
+        }
+        restaurants={
+          (restaurants || []) as { id: string; name: string }[]
+        }
       />
     </PageWrapper>
   );

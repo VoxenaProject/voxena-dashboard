@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Store,
   ShoppingBag,
+  Euro,
   ScrollText,
   Settings,
   LogOut,
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/admin", label: "Vue globale", icon: LayoutDashboard },
   { href: "/admin/restaurants", label: "Restaurants", icon: Store },
   { href: "/admin/orders", label: "Commandes", icon: ShoppingBag },
+  { href: "/admin/finances", label: "Finances", icon: Euro },
   { href: "/admin/logs", label: "Logs agents", icon: ScrollText },
   { href: "/admin/settings", label: "Configuration", icon: Settings },
 ];
