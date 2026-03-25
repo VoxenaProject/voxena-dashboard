@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/supabase/api-auth";
+import { requireAdmin, requireAuth } from "@/lib/supabase/api-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendInvitationEmail } from "@/lib/email/send-notification";
 import crypto from "crypto";
@@ -158,5 +158,40 @@ export async function POST(request: Request) {
       { error: "Erreur serveur" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * PATCH /api/invite
+ * Met à jour le profil (onboarding_completed) via service role.
+ * Accessible par le owner connecté (pour son propre profil uniquement).
+ */
+export async function PATCH(request: Request) {
+  try {
+    const auth = await requireAuth();
+    if ("error" in auth) return auth.error;
+
+    const body = await request.json();
+    const { profile_id, onboarding_completed } = body;
+
+    // Le user ne peut modifier que son propre profil
+    if (profile_id !== auth.profile.id) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ onboarding_completed })
+      .eq("id", profile_id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[invite/patch] Erreur:", err);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

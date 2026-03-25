@@ -243,18 +243,19 @@ export default function OnboardingPage() {
     if (!profile) return;
     setSaving(true);
 
-    // Mettre a jour le profil via Supabase directement
-    await supabase
-      .from("profiles")
-      .update({ onboarding_completed: true })
-      .eq("id", profile.id);
+    // Marquer l'onboarding comme terminé via une API route (bypass RLS)
+    await fetch("/api/invite", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile_id: profile.id, onboarding_completed: true }),
+    });
 
     // Nettoyer le localStorage
-    localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
 
-    // Rediriger vers le dashboard
-    router.push("/");
-    router.refresh();
+    // Rediriger via window.location pour forcer un rechargement complet
+    // (sinon le middleware cache l'ancien état onboarding_completed)
+    window.location.href = "/";
   }
 
   // Lancer les confettis quand on arrive au step 4
@@ -436,7 +437,7 @@ export default function OnboardingPage() {
                   <span className="text-blue font-medium">
                     {restaurant?.name || ""}
                   </span>{" "}
-                  est maintenant connecte a Voxena, votre agent vocal intelligent.
+                  est maintenant connecté à Voxena, votre agent vocal intelligent.
                 </motion.p>
 
                 {/* Feature cards */}
@@ -456,7 +457,7 @@ export default function OnboardingPage() {
                     },
                     {
                       icon: BarChart3,
-                      title: "Dashboard en temps reel",
+                      title: "Dashboard en temps réel",
                       desc: "Suivez vos commandes, revenus et performances",
                       gradient: "from-green/20 to-green-soft/10",
                       iconColor: "text-green-soft",
@@ -464,7 +465,7 @@ export default function OnboardingPage() {
                     {
                       icon: UtensilsCrossed,
                       title: "Menu intelligent",
-                      desc: "L'agent connait votre menu, vos prix et allergenes",
+                      desc: "L'agent connaît votre menu, vos prix et allergènes",
                       gradient: "from-violet/20 to-violet-dark/10",
                       iconColor: "text-violet",
                     },
@@ -535,7 +536,7 @@ export default function OnboardingPage() {
                     <Building2 className="w-7 h-7 text-blue" />
                   </motion.div>
                   <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
-                    Verifiez vos informations
+                    Vérifiez vos informations
                   </h2>
                   <p className="text-white/50 text-sm">
                     Assurez-vous que tout est correct avant de continuer
@@ -587,14 +588,14 @@ export default function OnboardingPage() {
                       />
                     </div>
 
-                    {/* Telephone */}
+                    {/* Téléphone */}
                     <div className="space-y-2">
                       <Label
                         htmlFor="resto-phone"
                         className="text-white/70 text-sm flex items-center gap-2"
                       >
                         <Phone className="w-3.5 h-3.5" />
-                        Telephone
+                        Téléphone
                       </Label>
                       <Input
                         id="resto-phone"
@@ -691,7 +692,7 @@ export default function OnboardingPage() {
                   </h2>
                   <p className="text-white/50 text-sm">
                     {menus.length > 0
-                      ? "Votre menu est deja configure par notre equipe"
+                      ? "Votre menu est déjà configuré par notre équipe"
                       : "Vous pourrez configurer votre menu depuis le dashboard"}
                   </p>
                 </div>
@@ -702,7 +703,7 @@ export default function OnboardingPage() {
                     <div className="flex items-center justify-center gap-2 mb-6">
                       <Badge className="bg-green/20 text-green-soft border-green/30 gap-1.5 px-3 py-1">
                         <Check className="w-3.5 h-3.5" />
-                        Votre menu est deja configure !
+                        Votre menu est déjà configuré !
                       </Badge>
                     </div>
 
@@ -761,7 +762,7 @@ export default function OnboardingPage() {
                     {/* Recap */}
                     <div className="text-center mt-4">
                       <p className="text-xs text-white/30">
-                        {menus.length} categorie{menus.length > 1 ? "s" : ""} ·{" "}
+                        {menus.length} catégorie{menus.length > 1 ? "s" : ""} ·{" "}
                         {menuItems.length} article{menuItems.length > 1 ? "s" : ""}
                       </p>
                     </div>
@@ -774,11 +775,11 @@ export default function OnboardingPage() {
                         <UtensilsCrossed className="w-8 h-8 text-white/30" />
                       </div>
                       <h3 className="font-heading text-base font-semibold text-white mb-2">
-                        Aucun menu configure
+                        Aucun menu configuré
                       </h3>
                       <p className="text-sm text-white/45 max-w-sm mx-auto mb-4">
                         Pas de souci ! Vous pourrez ajouter votre menu complet
-                        depuis le dashboard apres l&apos;onboarding. Notre equipe peut
+                        depuis le dashboard après l&apos;onboarding. Notre équipe peut
                         aussi le faire pour vous.
                       </p>
                       <Badge
@@ -847,7 +848,7 @@ export default function OnboardingPage() {
                   transition={{ delay: 0.3, duration: 0.5 }}
                   className="font-heading text-3xl md:text-4xl font-bold text-white mb-3"
                 >
-                  Vous etes pret !
+                  Vous êtes prêt !
                 </motion.h2>
 
                 <motion.p
@@ -856,7 +857,7 @@ export default function OnboardingPage() {
                   transition={{ delay: 0.4, duration: 0.5 }}
                   className="text-white/50 mb-8 max-w-md"
                 >
-                  Votre agent vocal est pret a prendre des commandes !
+                  Votre agent vocal est prêt à prendre des commandes !
                 </motion.p>
 
                 {/* Recap card */}
@@ -919,7 +920,7 @@ export default function OnboardingPage() {
                       </>
                     ) : (
                       <>
-                        Acceder au dashboard
+                        Accéder au dashboard
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
