@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ShoppingBag, Euro, TrendingUp, Clock, ArrowRight } from "lucide-react";
+import { ShoppingBag, Euro, TrendingUp, Clock, ArrowRight, Phone, Copy, Check } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { PulsingDot } from "@/components/ui/pulsing-dot";
@@ -31,10 +31,12 @@ interface DashboardStats {
 interface DashboardContentProps {
   stats: DashboardStats;
   chartData: { label: string; revenue: number; orders: number }[];
+  telnyxPhone?: string | null;
 }
 
-export function DashboardContent({ stats, chartData }: DashboardContentProps) {
+export function DashboardContent({ stats, chartData, telnyxPhone }: DashboardContentProps) {
   const [greeting, setGreeting] = useState("Bonjour");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -99,6 +101,59 @@ export function DashboardContent({ stats, chartData }: DashboardContentProps) {
           delay={3}
         />
       </div>
+
+      {/* Carte numéro Telnyx */}
+      {telnyxPhone && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.4 }}
+          className="mb-8"
+        >
+          <Card className="shadow-card border-violet/20 bg-gradient-to-r from-violet/[0.04] to-blue/[0.03]">
+            <CardContent className="py-5 px-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-violet/10 flex items-center justify-center">
+                    <Phone className="w-5 h-5 text-violet" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Votre ligne de commande
+                    </p>
+                    <p className="font-mono text-xl font-bold tracking-wide mt-0.5">
+                      {telnyxPhone}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(telnyxPhone);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted/60"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green" />
+                      Copié
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      Copier
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 ml-15">
+                C&apos;est le numéro que vos clients appellent pour commander
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

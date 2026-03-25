@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Loader2,
   Phone,
@@ -22,12 +23,64 @@ import {
   Sparkles,
   PartyPopper,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Clock,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import type { Profile, Restaurant, Menu, MenuItem } from "@/lib/supabase/types";
 
 // ── Constantes ──
 const STORAGE_KEY = "voxena_onboarding_step";
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 6;
+
+// ── Jours de la semaine ──
+const DAYS = [
+  { key: "lundi", label: "Lundi" },
+  { key: "mardi", label: "Mardi" },
+  { key: "mercredi", label: "Mercredi" },
+  { key: "jeudi", label: "Jeudi" },
+  { key: "vendredi", label: "Vendredi" },
+  { key: "samedi", label: "Samedi" },
+  { key: "dimanche", label: "Dimanche" },
+] as const;
+
+// ── Horaires par défaut ──
+const DEFAULT_OPENING_HOURS: OpeningHours = {
+  lundi: { open: true, services: [{ from: "11:30", to: "14:00" }, { from: "18:00", to: "22:00" }] },
+  mardi: { open: true, services: [{ from: "11:30", to: "14:00" }, { from: "18:00", to: "22:00" }] },
+  mercredi: { open: true, services: [{ from: "11:30", to: "14:00" }, { from: "18:00", to: "22:00" }] },
+  jeudi: { open: true, services: [{ from: "11:30", to: "14:00" }, { from: "18:00", to: "22:00" }] },
+  vendredi: { open: true, services: [{ from: "11:30", to: "14:00" }, { from: "18:00", to: "22:00" }] },
+  samedi: { open: true, services: [{ from: "18:00", to: "23:00" }] },
+  dimanche: { open: false, services: [] },
+};
+
+// ── Types horaires ──
+interface ServiceSlot {
+  from: string;
+  to: string;
+}
+
+interface DaySchedule {
+  open: boolean;
+  services: ServiceSlot[];
+}
+
+type OpeningHours = Record<string, DaySchedule>;
+
+// ── Générer les options de temps (06:00 à 02:00, par 30 min) ──
+const TIME_OPTIONS: string[] = [];
+for (let h = 6; h < 24; h++) {
+  TIME_OPTIONS.push(`${h.toString().padStart(2, "0")}:00`);
+  TIME_OPTIONS.push(`${h.toString().padStart(2, "0")}:30`);
+}
+for (let h = 0; h <= 2; h++) {
+  TIME_OPTIONS.push(`${h.toString().padStart(2, "0")}:00`);
+  if (h < 2) TIME_OPTIONS.push(`${h.toString().padStart(2, "0")}:30`);
+}
 
 // ── Animations ──
 const slideVariants = {
@@ -84,12 +137,35 @@ function ConfettiParticle({ delay, x }: { delay: number; x: number }) {
   );
 }
 
+// ── Select d'heure pour les horaires ──
+function TimeSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-9 rounded-lg border border-white/[0.1] bg-white/[0.06] px-2.5 text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-violet/30 cursor-pointer appearance-none"
+    >
+      {TIME_OPTIONS.map((t) => (
+        <option key={t} value={t} className="bg-navy-deep text-white">
+          {t}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // ── Composant principal ──
 export default function OnboardingPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // State
+  // State principal
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -100,7 +176,14 @@ export default function OnboardingPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Formulaire step 2
+  // State step 1 : mot de passe
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  // State step 3 : formulaire restaurant
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -108,7 +191,10 @@ export default function OnboardingPage() {
     whatsapp_phone: "",
   });
 
-  // Charger les donnees au montage
+  // State step 4 : horaires
+  const [openingHours, setOpeningHours] = useState<OpeningHours>(DEFAULT_OPENING_HOURS);
+
+  // Charger les données au montage
   const fetchData = useCallback(async () => {
     const {
       data: { user },
@@ -130,7 +216,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Si onboarding deja termine, rediriger
+    // Si onboarding déjà terminé, rediriger
     if (profileData.onboarding_completed) {
       router.push("/");
       return;
@@ -156,6 +242,27 @@ export default function OnboardingPage() {
           whatsapp_phone: resto.whatsapp_phone || "",
         });
 
+        // Charger les horaires existants si disponibles
+        if (resto.opening_hours && Object.keys(resto.opening_hours).length > 0) {
+          // Convertir le format existant vers le format onboarding
+          const existingHours: OpeningHours = {};
+          for (const day of DAYS) {
+            const dayData = (resto.opening_hours as Record<string, unknown>)[day.key];
+            if (dayData && Array.isArray(dayData) && dayData.length > 0) {
+              existingHours[day.key] = {
+                open: true,
+                services: dayData.map((slot: { open: string; close: string }) => ({
+                  from: slot.open,
+                  to: slot.close,
+                })),
+              };
+            } else {
+              existingHours[day.key] = { open: false, services: [] };
+            }
+          }
+          setOpeningHours(existingHours);
+        }
+
         // Menus et articles
         const { data: menusData } = await supabase
           .from("menus")
@@ -174,7 +281,7 @@ export default function OnboardingPage() {
       }
     }
 
-    // Recuperer le step depuis localStorage
+    // Récupérer le step depuis localStorage
     const savedStep = localStorage.getItem(STORAGE_KEY);
     if (savedStep) {
       const parsed = parseInt(savedStep, 10);
@@ -212,7 +319,35 @@ export default function OnboardingPage() {
     }
   }
 
-  // Sauvegarder les infos restaurant (step 2)
+  // Step 1 : Changer le mot de passe
+  async function handleChangePassword() {
+    setPasswordError("");
+
+    if (newPassword.length < 8) {
+      setPasswordError("Le mot de passe doit contenir au moins 8 caractères");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      setPasswordError("Erreur lors du changement de mot de passe : " + error.message);
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
+    goNext();
+  }
+
+  // Step 3 : Sauvegarder les infos restaurant
   async function handleSaveRestaurant() {
     if (!restaurant) return;
     setSaving(true);
@@ -238,7 +373,41 @@ export default function OnboardingPage() {
     goNext();
   }
 
-  // Finaliser l'onboarding (step 4)
+  // Step 4 : Sauvegarder les horaires
+  async function handleSaveOpeningHours() {
+    if (!restaurant) return;
+    setSaving(true);
+
+    // Convertir vers le format de la DB (compatible avec opening-hours-editor)
+    const dbHours: Record<string, { open: string; close: string }[]> = {};
+    for (const [day, schedule] of Object.entries(openingHours)) {
+      if (schedule.open && schedule.services.length > 0) {
+        dbHours[day] = schedule.services.map((s) => ({
+          open: s.from,
+          close: s.to,
+        }));
+      }
+    }
+
+    const res = await fetch("/api/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: restaurant.id,
+        opening_hours: dbHours,
+      }),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      setRestaurant(updated);
+    }
+
+    setSaving(false);
+    goNext();
+  }
+
+  // Step 6 : Finaliser l'onboarding
   async function handleComplete() {
     if (!profile) return;
     setSaving(true);
@@ -251,21 +420,80 @@ export default function OnboardingPage() {
     });
 
     // Nettoyer le localStorage
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
 
     // Rediriger via window.location pour forcer un rechargement complet
-    // (sinon le middleware cache l'ancien état onboarding_completed)
     window.location.href = "/";
   }
 
-  // Lancer les confettis quand on arrive au step 4
+  // Lancer les confettis quand on arrive au step 6
   useEffect(() => {
-    if (step === 4) {
+    if (step === 6) {
       setShowConfetti(true);
       const timer = setTimeout(() => setShowConfetti(false), 4000);
       return () => clearTimeout(timer);
     }
   }, [step]);
+
+  // ── Helpers horaires ──
+  function toggleDay(dayKey: string) {
+    setOpeningHours((prev) => ({
+      ...prev,
+      [dayKey]: {
+        open: !prev[dayKey]?.open,
+        services: !prev[dayKey]?.open
+          ? [{ from: "11:30", to: "22:00" }]
+          : [],
+      },
+    }));
+  }
+
+  function toggleDoubleService(dayKey: string) {
+    setOpeningHours((prev) => {
+      const day = prev[dayKey];
+      if (!day || !day.open) return prev;
+
+      if (day.services.length === 1) {
+        // Passer en double service
+        return {
+          ...prev,
+          [dayKey]: {
+            open: true,
+            services: [
+              { from: "11:30", to: "14:00" },
+              { from: "18:00", to: "22:00" },
+            ],
+          },
+        };
+      } else {
+        // Revenir en service unique
+        return {
+          ...prev,
+          [dayKey]: {
+            open: true,
+            services: [{ from: "11:30", to: "22:00" }],
+          },
+        };
+      }
+    });
+  }
+
+  function updateServiceTime(dayKey: string, serviceIndex: number, field: "from" | "to", value: string) {
+    setOpeningHours((prev) => {
+      const day = prev[dayKey];
+      if (!day) return prev;
+      const newServices = [...day.services];
+      newServices[serviceIndex] = { ...newServices[serviceIndex], [field]: value };
+      return {
+        ...prev,
+        [dayKey]: { ...day, services: newServices },
+      };
+    });
+  }
 
   // ── Loading state ──
   if (loading) {
@@ -286,7 +514,7 @@ export default function OnboardingPage() {
   // ── Rendu principal ──
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Fond anime */}
+      {/* Fond animé */}
       <div
         className="fixed inset-0"
         style={{
@@ -348,7 +576,7 @@ export default function OnboardingPage() {
                 </div>
                 {i < TOTAL_STEPS - 1 && (
                   <div
-                    className={`w-8 h-0.5 rounded-full transition-colors duration-300 ${
+                    className={`w-8 h-0.5 rounded-full transition-colors duration-300 hidden sm:block ${
                       i + 1 < step ? "bg-green/50" : "bg-white/[0.06]"
                     }`}
                   />
@@ -366,7 +594,8 @@ export default function OnboardingPage() {
       <div className="relative z-10 min-h-screen flex items-center justify-center pt-20 pb-8 px-4">
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait" custom={direction}>
-            {/* ═══════════ STEP 1 : Bienvenue ═══════════ */}
+
+            {/* ═══════════ STEP 1 : Changez votre mot de passe ═══════════ */}
             {step === 1 && (
               <motion.div
                 key="step1"
@@ -376,9 +605,138 @@ export default function OnboardingPage() {
                 animate="center"
                 exit="exit"
                 transition={slideTransition}
+              >
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.4 }}
+                    className="w-14 h-14 rounded-2xl bg-violet/20 flex items-center justify-center mx-auto mb-4"
+                  >
+                    <Lock className="w-7 h-7 text-blue" />
+                  </motion.div>
+                  <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
+                    Sécurisez votre compte
+                  </h2>
+                  <p className="text-white/50 text-sm max-w-md mx-auto">
+                    Choisissez un nouveau mot de passe pour remplacer le mot de passe temporaire
+                  </p>
+                </div>
+
+                <Card className="bg-white/[0.04] border-white/[0.06] backdrop-blur-sm">
+                  <CardContent className="p-6 space-y-5">
+                    {/* Nouveau mot de passe */}
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password" className="text-white/70 text-sm flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5" />
+                        Nouveau mot de passe
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            setPasswordError("");
+                          }}
+                          className="bg-white/[0.06] border-white/[0.1] text-white placeholder:text-white/30 focus:border-violet focus:ring-violet/30 pr-10"
+                          placeholder="Minimum 8 caractères"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {newPassword.length > 0 && newPassword.length < 8 && (
+                        <p className="text-xs text-amber-400">
+                          Encore {8 - newPassword.length} caractère{8 - newPassword.length > 1 ? "s" : ""} requis
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Confirmer le mot de passe */}
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password" className="text-white/70 text-sm flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5" />
+                        Confirmer le mot de passe
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="confirm-password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setPasswordError("");
+                          }}
+                          className="bg-white/[0.06] border-white/[0.1] text-white placeholder:text-white/30 focus:border-violet focus:ring-violet/30 pr-10"
+                          placeholder="Retapez votre mot de passe"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                        <p className="text-xs text-amber-400">
+                          Les mots de passe ne correspondent pas
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Erreur globale */}
+                    {passwordError && (
+                      <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+                        <p className="text-sm text-red-400">{passwordError}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Bouton */}
+                <div className="flex items-center justify-end mt-8">
+                  <Button
+                    onClick={handleChangePassword}
+                    disabled={saving || newPassword.length < 8 || newPassword !== confirmPassword}
+                    className="h-11 px-6 font-medium gap-2"
+                    style={{ background: "var(--gradient-violet)" }}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Mise à jour...
+                      </>
+                    ) : (
+                      <>
+                        Continuer
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════ STEP 2 : Bienvenue ═══════════ */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition}
                 className="flex flex-col items-center text-center"
               >
-                {/* Logo anime */}
+                {/* Logo animé */}
                 <motion.div
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -497,12 +855,20 @@ export default function OnboardingPage() {
                   ))}
                 </motion.div>
 
-                {/* Bouton */}
+                {/* Navigation */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9, duration: 0.4 }}
+                  className="flex items-center gap-4"
                 >
+                  <Button
+                    variant="ghost"
+                    onClick={goBack}
+                    className="text-white/50 hover:text-white hover:bg-white/[0.06]"
+                  >
+                    Retour
+                  </Button>
                   <Button
                     onClick={goNext}
                     className="h-12 px-8 text-base font-medium gap-2"
@@ -515,10 +881,10 @@ export default function OnboardingPage() {
               </motion.div>
             )}
 
-            {/* ═══════════ STEP 2 : Verifier les informations ═══════════ */}
-            {step === 2 && (
+            {/* ═══════════ STEP 3 : Vérifiez vos informations ═══════════ */}
+            {step === 3 && (
               <motion.div
-                key="step2"
+                key="step3"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
@@ -667,10 +1033,143 @@ export default function OnboardingPage() {
               </motion.div>
             )}
 
-            {/* ═══════════ STEP 3 : Menu ═══════════ */}
-            {step === 3 && (
+            {/* ═══════════ STEP 4 : Horaires d'ouverture ═══════════ */}
+            {step === 4 && (
               <motion.div
-                key="step3"
+                key="step4"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition}
+              >
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.4 }}
+                    className="w-14 h-14 rounded-2xl bg-green/20 flex items-center justify-center mx-auto mb-4"
+                  >
+                    <Clock className="w-7 h-7 text-green-soft" />
+                  </motion.div>
+                  <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-2">
+                    Configurez vos horaires
+                  </h2>
+                  <p className="text-white/50 text-sm max-w-md mx-auto">
+                    Indiquez quand votre restaurant est ouvert pour les commandes
+                  </p>
+                </div>
+
+                <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                  {DAYS.map(({ key, label }) => {
+                    const daySchedule = openingHours[key] || { open: false, services: [] };
+                    const isOpen = daySchedule.open;
+                    const isDoubleService = daySchedule.services.length >= 2;
+
+                    return (
+                      <Card
+                        key={key}
+                        className={`backdrop-blur-sm transition-all duration-200 ${
+                          isOpen
+                            ? "bg-white/[0.06] border-white/[0.1]"
+                            : "bg-white/[0.02] border-white/[0.05]"
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          {/* Ligne principale : toggle + nom du jour */}
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={isOpen}
+                              onCheckedChange={() => toggleDay(key)}
+                            />
+                            <span className={`text-sm font-medium w-24 ${isOpen ? "text-white" : "text-white/40"}`}>
+                              {label}
+                            </span>
+                            {!isOpen && (
+                              <span className="text-sm text-white/30">Fermé</span>
+                            )}
+                          </div>
+
+                          {isOpen && (
+                            <div className="mt-3 ml-[52px] space-y-3">
+                              {/* Toggle double service */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDoubleService(key)}
+                                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                                    isDoubleService
+                                      ? "bg-violet/20 text-violet border border-violet/30"
+                                      : "bg-white/[0.06] text-white/50 border border-white/[0.08] hover:text-white/70"
+                                  }`}
+                                >
+                                  {isDoubleService ? "Double service (midi + soir)" : "Service continu"}
+                                </button>
+                              </div>
+
+                              {/* Créneaux horaires */}
+                              {daySchedule.services.map((service, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  {isDoubleService && (
+                                    <span className="text-[11px] text-white/40 font-mono w-8">
+                                      {i === 0 ? "Midi" : "Soir"}
+                                    </span>
+                                  )}
+                                  <TimeSelect
+                                    value={service.from}
+                                    onChange={(v) => updateServiceTime(key, i, "from", v)}
+                                  />
+                                  <span className="text-xs text-white/40">à</span>
+                                  <TimeSelect
+                                    value={service.to}
+                                    onChange={(v) => updateServiceTime(key, i, "to", v)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex items-center justify-between mt-8">
+                  <Button
+                    variant="ghost"
+                    onClick={goBack}
+                    className="text-white/50 hover:text-white hover:bg-white/[0.06]"
+                  >
+                    Retour
+                  </Button>
+                  <Button
+                    onClick={handleSaveOpeningHours}
+                    disabled={saving}
+                    className="h-11 px-6 font-medium gap-2"
+                    style={{ background: "var(--gradient-violet)" }}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Enregistrement...
+                      </>
+                    ) : (
+                      <>
+                        Suivant
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════ STEP 5 : Menu ═══════════ */}
+            {step === 5 && (
+              <motion.div
+                key="step5"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
@@ -698,7 +1197,7 @@ export default function OnboardingPage() {
                 </div>
 
                 {menus.length > 0 ? (
-                  /* Menu deja configure — affichage en lecture seule */
+                  /* Menu déjà configuré — affichage en lecture seule */
                   <div className="space-y-4">
                     <div className="flex items-center justify-center gap-2 mb-6">
                       <Badge className="bg-green/20 text-green-soft border-green/30 gap-1.5 px-3 py-1">
@@ -759,7 +1258,7 @@ export default function OnboardingPage() {
                       })}
                     </div>
 
-                    {/* Recap */}
+                    {/* Récap */}
                     <div className="text-center mt-4">
                       <p className="text-xs text-white/30">
                         {menus.length} catégorie{menus.length > 1 ? "s" : ""} ·{" "}
@@ -813,10 +1312,10 @@ export default function OnboardingPage() {
               </motion.div>
             )}
 
-            {/* ═══════════ STEP 4 : Termine ═══════════ */}
-            {step === 4 && (
+            {/* ═══════════ STEP 6 : Vous êtes prêt ! ═══════════ */}
+            {step === 6 && (
               <motion.div
-                key="step4"
+                key="step6"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
@@ -825,7 +1324,7 @@ export default function OnboardingPage() {
                 transition={slideTransition}
                 className="flex flex-col items-center text-center"
               >
-                {/* Icone celebration */}
+                {/* Icône célébration */}
                 <motion.div
                   initial={{ scale: 0, rotate: -20 }}
                   animate={{ scale: 1, rotate: 0 }}
@@ -886,6 +1385,16 @@ export default function OnboardingPage() {
                         <span className="text-sm font-mono font-medium text-white">
                           {menuItems.length}
                         </span>
+                      </div>
+                      <div className="h-px bg-white/[0.06]" />
+
+                      {/* Mot de passe */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-white/50">Mot de passe</span>
+                        <Badge className="bg-green/20 text-green-soft border-green/30 gap-1 text-xs">
+                          <Check className="w-3 h-3" />
+                          Mis à jour
+                        </Badge>
                       </div>
                       <div className="h-px bg-white/[0.06]" />
 

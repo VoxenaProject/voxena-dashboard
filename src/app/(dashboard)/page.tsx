@@ -12,7 +12,17 @@ export default async function DashboardHome() {
 
   if (!restaurantId) return <NoRestaurant />;
 
-  const stats = await getDashboardStats(supabase, restaurantId);
+  // Récupérer les stats + le numéro Telnyx du restaurant
+  const [stats, restaurantRes] = await Promise.all([
+    getDashboardStats(supabase, restaurantId),
+    supabase
+      .from("restaurants")
+      .select("telnyx_phone")
+      .eq("id", restaurantId)
+      .single(),
+  ]);
+
+  const telnyxPhone = restaurantRes.data?.telnyx_phone || null;
 
   // Construire les données chart 7 jours
   const now = new Date();
@@ -31,6 +41,7 @@ export default async function DashboardHome() {
     <DashboardContent
       stats={stats}
       chartData={chartData}
+      telnyxPhone={telnyxPhone}
     />
   );
 }
