@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { OpeningHoursEditor } from "./opening-hours-editor";
 import { createClient } from "@/lib/supabase/client";
+import { isValidPhone } from "@/lib/utils/phone";
 import type { Restaurant } from "@/lib/supabase/types";
 
 // Types pour les infos pratiques
@@ -84,6 +85,14 @@ export function RestaurantSettings({
     whatsapp_phone: restaurant.whatsapp_phone || "",
     owner_name: restaurant.owner_name || "",
   });
+  const [phoneError, setPhoneError] = useState(false);
+  const [whatsappError, setWhatsappError] = useState(false);
+  const [defaultReservationDuration, setDefaultReservationDuration] = useState(
+    restaurant.default_reservation_duration ?? 90
+  );
+  const [turnoverBuffer, setTurnoverBuffer] = useState(
+    restaurant.turnover_buffer ?? 15
+  );
   const [openingHours, setOpeningHours] = useState(
     restaurant.opening_hours || {}
   );
@@ -129,6 +138,18 @@ export function RestaurantSettings({
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+
+    // Validation des numéros de téléphone
+    const phoneValid = isValidPhone(form.phone);
+    const whatsappValid = isValidPhone(form.whatsapp_phone);
+    setPhoneError(!phoneValid);
+    setWhatsappError(!whatsappValid);
+
+    if (!phoneValid || !whatsappValid) {
+      toast.error("Veuillez corriger les numéros de téléphone invalides");
+      return;
+    }
+
     setLoading(true);
 
     const res = await fetch("/api/restaurants", {
@@ -138,6 +159,8 @@ export function RestaurantSettings({
         id: restaurant.id,
         ...form,
         opening_hours: openingHours,
+        default_reservation_duration: defaultReservationDuration,
+        turnover_buffer: turnoverBuffer,
       }),
     });
 
@@ -250,8 +273,15 @@ export function RestaurantSettings({
                 id="phone"
                 type="tel"
                 value={form.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
+                onChange={(e) => {
+                  handleChange("phone", e.target.value);
+                  if (phoneError) setPhoneError(!isValidPhone(e.target.value));
+                }}
+                className={phoneError ? "border-destructive" : ""}
               />
+              {phoneError && (
+                <p className="text-xs text-destructive">Numéro de téléphone invalide</p>
+              )}
             </div>
             <Separator />
             <div className="space-y-2">
@@ -261,8 +291,15 @@ export function RestaurantSettings({
                 type="tel"
                 placeholder="+32..."
                 value={form.whatsapp_phone}
-                onChange={(e) => handleChange("whatsapp_phone", e.target.value)}
+                onChange={(e) => {
+                  handleChange("whatsapp_phone", e.target.value);
+                  if (whatsappError) setWhatsappError(!isValidPhone(e.target.value));
+                }}
+                className={whatsappError ? "border-destructive" : ""}
               />
+              {whatsappError && (
+                <p className="text-xs text-destructive">Numéro de téléphone invalide</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Utilisé pour envoyer les confirmations de commande au client
               </p>
@@ -281,6 +318,56 @@ export function RestaurantSettings({
               value={openingHours}
               onChange={setOpeningHours}
             />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="font-heading text-lg">
+              Réservations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="default_reservation_duration">
+                Durée de réservation par défaut (minutes)
+              </Label>
+              <Input
+                id="default_reservation_duration"
+                type="number"
+                min={30}
+                max={300}
+                value={defaultReservationDuration}
+                onChange={(e) =>
+                  setDefaultReservationDuration(
+                    Math.max(30, Math.min(300, parseInt(e.target.value) || 90))
+                  )
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Durée par défaut attribuée à chaque réservation (en minutes)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="turnover_buffer">
+                Temps de retournement (minutes)
+              </Label>
+              <Input
+                id="turnover_buffer"
+                type="number"
+                min={0}
+                max={120}
+                value={turnoverBuffer}
+                onChange={(e) =>
+                  setTurnoverBuffer(
+                    Math.max(0, Math.min(120, parseInt(e.target.value) || 15))
+                  )
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Temps entre deux réservations pour le nettoyage et la préparation de la table
+              </p>
+            </div>
           </CardContent>
         </Card>
 

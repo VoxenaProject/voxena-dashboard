@@ -25,10 +25,10 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Récupérer les horaires d'ouverture du restaurant
+  // Récupérer les horaires d'ouverture et paramètres de réservation du restaurant
   const { data: restaurant } = await supabase
     .from("restaurants")
-    .select("opening_hours")
+    .select("opening_hours, default_reservation_duration, turnover_buffer")
     .eq("id", restaurantId)
     .single();
 
@@ -73,8 +73,9 @@ export async function GET(request: NextRequest) {
 
   const reservations = existingResas || [];
 
-  // Durée par défaut d'une réservation : 90 minutes
-  const DEFAULT_DURATION = 90;
+  // Durée par défaut et buffer de retournement depuis les settings du restaurant
+  const DEFAULT_DURATION = restaurant?.default_reservation_duration ?? 90;
+  const TURNOVER_BUFFER = restaurant?.turnover_buffer ?? 15;
 
   // Générer tous les créneaux de 30 minutes dans les plages d'ouverture
   const slots: { time: string; tables: { id: string; name: string; capacity: number; zone: string }[] }[] = [];
@@ -90,16 +91,18 @@ export async function GET(request: NextRequest) {
 
     while (currentMinutes <= lastSlotMinutes) {
       const slotTime = `${String(Math.floor(currentMinutes / 60)).padStart(2, "0")}:${String(currentMinutes % 60).padStart(2, "0")}`;
-      const slotEnd = currentMinutes + DEFAULT_DURATION;
+      // La durée effective inclut le buffer de retournement
+      const slotEnd = currentMinutes + DEFAULT_DURATION + TURNOVER_BUFFER;
 
       // Trouver les tables disponibles pour ce créneau
       const availableTables = tables.filter((table) => {
         // Vérifier qu'il n'y a pas de chevauchement avec les résas existantes sur cette table
+        // en tenant compte du buffer de retournement
         const hasConflict = reservations.some((resa) => {
           if (resa.table_id !== table.id) return false;
           const [rH, rM] = resa.time_slot.split(":").map(Number);
           const resaStart = rH * 60 + rM;
-          const resaEnd = resaStart + (resa.duration || DEFAULT_DURATION);
+          const resaEnd = resaStart + (resa.duration || DEFAULT_DURATION) + TURNOVER_BUFFER;
           // Chevauchement
           return currentMinutes < resaEnd && slotEnd > resaStart;
         });

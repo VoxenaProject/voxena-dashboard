@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   DndContext,
   type DragEndEvent,
@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Plus,
+  Minus,
   Save,
   RectangleHorizontal,
   Circle,
@@ -20,6 +21,9 @@ import {
   Users,
   Smartphone,
   Grid3X3,
+  Undo2,
+  Redo2,
+  RotateCcw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -88,7 +92,85 @@ export function FloorPlanEditor({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeZone, setActiveZone] = useState<string>("all");
+  // Zoom : 0.5 à 2.0 (50% à 200%)
+  const [zoom, setZoom] = useState(1.0);
+  // Historique pour undo/redo
+  const [history, setHistory] = useState<LocalTable[][]>([]);
+  const [undoStack, setUndoStack] = useState<LocalTable[][]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Pousser l'état actuel dans l'historique avant chaque action
+  const pushHistory = useCallback(() => {
+    setHistory((prev) => [...prev.slice(-49), tables.map((t) => ({ ...t }))]);
+    setUndoStack([]); // Effacer le redo sur nouvelle action
+  }, [tables]);
+
+  // Annuler la dernière action
+  const undo = useCallback(() => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setUndoStack((stack) => [...stack, tables.map((t) => ({ ...t }))]);
+    setHistory((h) => h.slice(0, -1));
+    setTables(prev);
+    setHasChanges(true);
+  }, [history, tables]);
+
+  // Rétablir la dernière action annulée
+  const redo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const next = undoStack[undoStack.length - 1];
+    setHistory((h) => [...h, tables.map((t) => ({ ...t }))]);
+    setUndoStack((stack) => stack.slice(0, -1));
+    setTables(next);
+    setHasChanges(true);
+  }, [undoStack, tables]);
+
+  // Contrôles de zoom
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(2.0, Math.round((z + 0.1) * 10) / 10));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
+  }, []);
+
+  const zoomReset = useCallback(() => {
+    setZoom(1.0);
+  }, []);
+
+  // Raccourcis clavier : Ctrl+Z (undo), Ctrl+Shift+Z (redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "Z") {
+        e.preventDefault();
+        redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
+  // Zoom avec Ctrl+scroll
+  useEffect(() => {
+    const container = canvasRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoom((z) =>
+          Math.max(0.5, Math.min(2.0, Math.round((z + delta) * 10) / 10))
+        );
+      }
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, []);
 
   // Table sélectionnée
   const selectedTable = tables.find(
@@ -102,9 +184,10 @@ export function FloorPlanEditor({
     })
   );
 
-  // Mettre à jour une table dans le state local
+  // Mettre à jour une table dans le state local (avec historique)
   const updateTable = useCallback(
     (tableId: string, updates: Partial<LocalTable>) => {
+      pushHistory();
       setTables((prev) =>
         prev.map((t) =>
           (t.id === tableId || t._tempId === tableId) ? { ...t, ...updates } : t
@@ -112,18 +195,19 @@ export function FloorPlanEditor({
       );
       setHasChanges(true);
     },
-    []
+    [pushHistory]
   );
 
-  // Ajouter une table
+  // Ajouter une table (avec historique)
   const addTable = useCallback(
     (shape: "rectangle" | "round" | "square") => {
+      pushHistory();
       const count = tables.length;
       const defaultCapacity = shape === "round" ? 4 : 2;
       const defaultWidth = shape === "rectangle" ? 120 : 80;
       const defaultHeight = shape === "rectangle" ? 70 : 80;
 
-      // Positionner au centre du canvas
+      // Positionner au centre de la zone visible (en tenant compte du zoom)
       const canvasEl = canvasRef.current;
       const scrollLeft = canvasEl?.scrollLeft || 0;
       const scrollTop = canvasEl?.scrollTop || 0;
@@ -131,10 +215,10 @@ export function FloorPlanEditor({
       const viewHeight = canvasEl?.clientHeight || CANVAS_HEIGHT;
 
       const centerX = snapToGrid(
-        scrollLeft + viewWidth / 2 - defaultWidth / 2
+        scrollLeft / zoom + viewWidth / (2 * zoom) - defaultWidth / 2
       );
       const centerY = snapToGrid(
-        scrollTop + viewHeight / 2 - defaultHeight / 2
+        scrollTop / zoom + viewHeight / (2 * zoom) - defaultHeight / 2
       );
 
       const tempId = generateTempId();
@@ -165,12 +249,13 @@ export function FloorPlanEditor({
       setSelectedId(tempId);
       setHasChanges(true);
     },
-    [tables.length, restaurantId, activeZone]
+    [tables.length, restaurantId, activeZone, pushHistory, zoom]
   );
 
-  // Supprimer une table
+  // Supprimer une table (avec historique)
   const deleteTable = useCallback(
     (tableId: string) => {
+      pushHistory();
       setTables((prev) =>
         prev.filter((t) => t.id !== tableId && t._tempId !== tableId)
       );
@@ -178,22 +263,23 @@ export function FloorPlanEditor({
       setDeleteConfirmId(null);
       setHasChanges(true);
     },
-    [selectedId]
+    [selectedId, pushHistory]
   );
 
-  // Gestion du drag end
+  // Gestion du drag end (avec historique et compensation du zoom)
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, delta } = event;
       const tableId = active.id as string;
 
+      pushHistory();
       setTables((prev) =>
         prev.map((t) => {
           if (t.id === tableId || t._tempId === tableId) {
             return {
               ...t,
-              x: snapToGrid(Math.max(0, t.x + delta.x)),
-              y: snapToGrid(Math.max(0, t.y + delta.y)),
+              x: snapToGrid(Math.max(0, t.x + delta.x / zoom)),
+              y: snapToGrid(Math.max(0, t.y + delta.y / zoom)),
             };
           }
           return t;
@@ -201,7 +287,7 @@ export function FloorPlanEditor({
       );
       setHasChanges(true);
     },
-    []
+    [zoom, pushHistory]
   );
 
   // Sauvegarde bulk
@@ -327,6 +413,36 @@ export function FloorPlanEditor({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Séparateur */}
+            <div className="w-px h-6 bg-border" />
+
+            {/* Undo / Redo */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={undo}
+                disabled={history.length === 0}
+                title="Annuler (Ctrl+Z)"
+              >
+                <Undo2 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={redo}
+                disabled={undoStack.length === 0}
+                title="Rétablir (Ctrl+Shift+Z)"
+              >
+                <Redo2 className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Séparateur */}
+            <div className="w-px h-6 bg-border" />
+
             {/* Indicateur de tables */}
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Grid3X3 className="w-4 h-4" />
@@ -387,59 +503,111 @@ export function FloorPlanEditor({
 
         {/* Zone principale : canvas + panneau latéral */}
         <div className="flex gap-4 flex-1 min-h-0">
-          {/* Canvas */}
-          <Card className="flex-1 overflow-auto relative p-0">
+          {/* Canvas avec zoom */}
+          <Card className="flex-1 overflow-hidden relative p-0">
             <div
               ref={canvasRef}
               className="overflow-auto h-full"
               style={{ minHeight: 600 }}
             >
               <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                {/* Conteneur de zoom — scale le contenu, garde les dimensions logiques */}
                 <div
-                  onClick={handleCanvasClick}
-                  className="relative"
                   style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
                     width: CANVAS_WIDTH,
                     height: CANVAS_HEIGHT,
-                    backgroundImage: `
-                      linear-gradient(to right, rgba(66, 55, 196, 0.04) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(66, 55, 196, 0.04) 1px, transparent 1px)
-                    `,
-                    backgroundSize: `${GRID_SIZE * 2}px ${GRID_SIZE * 2}px`,
                   }}
                 >
-                  {/* Tables (filtrées par zone active) */}
-                  {tables
-                    .filter((t) =>
-                      activeZone === "all" ? true : (t.zone || "salle") === activeZone
-                    )
-                    .map((table) => (
-                      <FloorTableElement
-                        key={getTableKey(table)}
-                        table={table}
-                        zone={table.zone || "salle"}
-                        isSelected={
-                          selectedId === table.id ||
-                          selectedId === table._tempId
-                        }
-                        onSelect={() =>
-                          setSelectedId(table.id || table._tempId || null)
-                        }
-                      />
-                    ))}
+                  <div
+                    onClick={handleCanvasClick}
+                    className="relative"
+                    style={{
+                      width: CANVAS_WIDTH,
+                      height: CANVAS_HEIGHT,
+                      backgroundImage: `
+                        linear-gradient(to right, rgba(66, 55, 196, 0.04) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(66, 55, 196, 0.04) 1px, transparent 1px)
+                      `,
+                      backgroundSize: `${GRID_SIZE * 2}px ${GRID_SIZE * 2}px`,
+                    }}
+                  >
+                    {/* Tables (filtrées par zone active) */}
+                    {tables
+                      .filter((t) =>
+                        activeZone === "all" ? true : (t.zone || "salle") === activeZone
+                      )
+                      .map((table) => (
+                        <FloorTableElement
+                          key={getTableKey(table)}
+                          table={table}
+                          zone={table.zone || "salle"}
+                          isSelected={
+                            selectedId === table.id ||
+                            selectedId === table._tempId
+                          }
+                          onSelect={() =>
+                            setSelectedId(table.id || table._tempId || null)
+                          }
+                        />
+                      ))}
 
-                  {/* Indication si aucune table */}
-                  {tables.length === 0 && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none">
-                      <Grid3X3 className="w-10 h-10 mb-3 opacity-30" />
-                      <p className="text-sm font-medium">Aucune table</p>
-                      <p className="text-xs mt-1">
-                        Cliquez sur &quot;Ajouter une table&quot; pour commencer
-                      </p>
-                    </div>
-                  )}
+                    {/* Indication si aucune table */}
+                    {tables.length === 0 && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none">
+                        <Grid3X3 className="w-10 h-10 mb-3 opacity-30" />
+                        <p className="text-sm font-medium">Aucune table</p>
+                        <p className="text-xs mt-1">
+                          Cliquez sur &quot;Ajouter une table&quot; pour commencer
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </DndContext>
+            </div>
+
+            {/* Contrôles de zoom (en bas à droite du canvas) */}
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/90 backdrop-blur-sm border rounded-lg shadow-sm p-1 z-20">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={zoomOut}
+                disabled={zoom <= 0.5}
+                title="Dézoomer"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </Button>
+              <button
+                onClick={zoomReset}
+                className="px-2 py-0.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors min-w-[3.5rem] text-center"
+                title="Réinitialiser le zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={zoomIn}
+                disabled={zoom >= 2.0}
+                title="Zoomer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </Button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={zoomReset}
+                disabled={zoom === 1.0}
+                title="Réinitialiser à 100%"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </Card>
 

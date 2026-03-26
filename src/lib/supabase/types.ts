@@ -48,6 +48,8 @@ export interface Restaurant {
   cancelled_at: string | null;
   billing_notes: string | null;
   practical_info: PracticalInfo | null;
+  default_reservation_duration: number;
+  turnover_buffer: number;
   created_at: string;
 }
 
@@ -169,6 +171,8 @@ export interface Reservation {
   customer_email: string | null;
   status: ReservationStatus;
   notes: string | null;
+  preferences: string[];
+  occasion: string | null;
   waitlist_position: number | null;
   estimated_wait_minutes: number | null;
   source: "phone" | "web" | "manual";

@@ -9,10 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { isValidPhone } from "@/lib/utils/phone";
 
 export default function NewRestaurantPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
+  const [whatsappError, setWhatsappError] = useState(false);
   const [form, setForm] = useState({
     name: "",
     owner_name: "",
@@ -32,6 +35,17 @@ export default function NewRestaurantPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.owner_email.trim() || !form.owner_full_name.trim()) return;
+
+    // Validation des numéros de téléphone
+    const phoneValid = isValidPhone(form.phone);
+    const whatsappValid = isValidPhone(form.whatsapp_phone);
+    setPhoneError(!phoneValid);
+    setWhatsappError(!whatsappValid);
+
+    if (!phoneValid || !whatsappValid) {
+      toast.error("Veuillez corriger les numéros de téléphone invalides");
+      return;
+    }
 
     setLoading(true);
 
@@ -207,26 +221,38 @@ export default function NewRestaurantPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Telephone</Label>
+              <Label htmlFor="phone">Téléphone</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={form.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
+                onChange={(e) => {
+                  handleChange("phone", e.target.value);
+                  if (phoneError) setPhoneError(!isValidPhone(e.target.value));
+                }}
                 placeholder="+32 2 123 45 67"
+                className={phoneError ? "border-destructive" : ""}
               />
+              {phoneError && (
+                <p className="text-xs text-destructive">Numéro de téléphone invalide</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="whatsapp_phone">Numero WhatsApp</Label>
+              <Label htmlFor="whatsapp_phone">Numéro WhatsApp</Label>
               <Input
                 id="whatsapp_phone"
                 type="tel"
                 value={form.whatsapp_phone}
-                onChange={(e) =>
-                  handleChange("whatsapp_phone", e.target.value)
-                }
+                onChange={(e) => {
+                  handleChange("whatsapp_phone", e.target.value);
+                  if (whatsappError) setWhatsappError(!isValidPhone(e.target.value));
+                }}
                 placeholder="+32..."
+                className={whatsappError ? "border-destructive" : ""}
               />
+              {whatsappError && (
+                <p className="text-xs text-destructive">Numéro de téléphone invalide</p>
+              )}
             </div>
           </CardContent>
         </Card>

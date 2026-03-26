@@ -89,10 +89,10 @@ const statusConfig: Record<
   },
 };
 
-// Détection d'occasion dans les notes
-function detectOccasion(notes: string | null): { emoji: string; label: string } | null {
-  if (!notes) return null;
-  const lower = notes.toLowerCase();
+// Résolution d'occasion à partir de la colonne dédiée
+function resolveOccasion(occasion: string | null): { emoji: string; label: string } | null {
+  if (!occasion) return null;
+  const lower = occasion.toLowerCase();
   if (lower.includes("anniversaire")) return { emoji: "\u{1F382}", label: "Anniversaire" };
   if (lower.includes("affaires") || lower.includes("business"))
     return { emoji: "\u{1F4BC}", label: "Business" };
@@ -100,7 +100,7 @@ function detectOccasion(notes: string | null): { emoji: string; label: string } 
     return { emoji: "\u{2764}\uFE0F", label: "Rendez-vous" };
   if (lower.includes("fête") || lower.includes("fete"))
     return { emoji: "\u{1F389}", label: "Fête" };
-  return null;
+  return { emoji: "\u{2728}", label: occasion };
 }
 
 // ── Composant principal ──
@@ -537,13 +537,11 @@ function ReservationCard({
 }) {
   const status = statusConfig[reservation.status];
   const table = tables.find((t) => t.id === reservation.table_id);
-  const occasion = detectOccasion(reservation.notes);
+  const occasion = resolveOccasion(reservation.occasion);
+  const preferences = reservation.preferences || [];
 
-  // Nettoyer les notes pour l'affichage (retirer métadonnées)
-  const displayNotes = reservation.notes
-    ?.replace(/\[Préférences: [^\]]+\]\s*/g, "")
-    .replace(/\[Occasion: [^\]]+\]\s*/g, "")
-    .trim();
+  // Les notes sont désormais pures (pas de métadonnées encodées)
+  const displayNotes = reservation.notes?.trim();
 
   return (
     <motion.div
@@ -592,6 +590,16 @@ function ReservationCard({
                 {occasion.emoji} {occasion.label}
               </span>
             )}
+
+            {/* Tags préférences */}
+            {preferences.length > 0 && preferences.map((pref) => (
+              <span
+                key={pref}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue/10 text-blue"
+              >
+                {pref}
+              </span>
+            ))}
           </div>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">

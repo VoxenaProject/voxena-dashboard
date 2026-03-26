@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/api-auth";
 import { sendReservationConfirmation } from "@/lib/email/send-notification";
+import { isValidPhone } from "@/lib/utils/phone";
 
 /**
  * GET /api/reservations
@@ -96,6 +97,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validation du téléphone
+    if (customer_phone && !isValidPhone(customer_phone)) {
+      return NextResponse.json(
+        { error: "Numéro de téléphone invalide" },
+        { status: 400 }
+      );
+    }
+
     // Vérifier auth — soit service role (agent), soit cookie (owner)
     const apiKey = request.headers.get("x-api-key") || request.headers.get("X-Api-Key");
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
@@ -116,14 +125,21 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Construire les notes enrichies (préférences + occasion)
-    let enrichedNotes = notes || "";
-    if (occasion && occasion !== "Aucune") {
-      enrichedNotes = `[Occasion: ${occasion}] ${enrichedNotes}`.trim();
-    }
-    if (preferences && Array.isArray(preferences) && preferences.length > 0) {
-      enrichedNotes = `[Préférences: ${preferences.join(", ")}] ${enrichedNotes}`.trim();
-    }
+    // Récupérer les paramètres de réservation du restaurant
+    const { data: restaurantSettings } = await supabase
+      .from("restaurants")
+      .select("default_reservation_duration, turnover_buffer")
+      .eq("id", restaurant_id)
+      .single();
+
+    const defaultDuration = restaurantSettings?.default_reservation_duration ?? 90;
+    const turnoverBuffer = restaurantSettings?.turnover_buffer ?? 15;
+
+    // Utiliser la durée par défaut du restaurant si non spécifiée
+    const effectiveDuration = duration || defaultDuration;
+
+    // Les notes restent pures — préférences et occasion sont stockés dans des colonnes dédiées
+    const cleanNotes = notes || "";
 
     // Résoudre la table — soit fournie, soit auto-assignée
     let resolvedTableId = table_id || null;
@@ -140,13 +156,16 @@ export async function POST(request: NextRequest) {
 
       if (availableTables && availableTables.length > 0) {
         // Vérifier les conflits de réservation pour chaque table candidate
+        // en tenant compte du buffer de retournement
         for (const table of availableTables) {
           const conflict = await checkTableConflict(
             supabase,
             table.id,
             date,
             time_slot,
-            duration
+            effectiveDuration,
+            undefined,
+            turnoverBuffer
           );
           if (!conflict) {
             resolvedTableId = table.id;
@@ -161,7 +180,9 @@ export async function POST(request: NextRequest) {
         resolvedTableId,
         date,
         time_slot,
-        duration
+        effectiveDuration,
+        undefined,
+        turnoverBuffer
       );
       if (conflict) {
         return NextResponse.json(
@@ -225,7 +246,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Créer la réservation
+    // Créer la réservation avec préférences et occasion en colonnes dédiées
     const { data: reservation, error } = await supabase
       .from("reservations")
       .insert({
@@ -233,13 +254,15 @@ export async function POST(request: NextRequest) {
         table_id: isWaitlist ? null : resolvedTableId,
         date,
         time_slot,
-        duration,
+        duration: effectiveDuration,
         covers,
         customer_name,
         customer_phone: customer_phone || null,
         customer_email: customer_email || null,
         status: isWaitlist ? "liste_attente" : "en_attente",
-        notes: enrichedNotes || null,
+        notes: cleanNotes || null,
+        preferences: Array.isArray(preferences) ? preferences : [],
+        occasion: occasion && occasion !== "Aucune" ? occasion : null,
         source: isAgent ? "phone" : source,
         conversation_id: conversation_id || null,
         waitlist_position: waitlistPosition,
@@ -270,7 +293,7 @@ export async function POST(request: NextRequest) {
             date,
             time_slot,
             covers,
-            notes: enrichedNotes || null,
+            notes: cleanNotes || null,
           },
           restaurant: {
             name: resto.name,
@@ -395,6 +418,8 @@ export async function PATCH(request: NextRequest) {
       "customer_phone",
       "customer_email",
       "notes",
+      "preferences",
+      "occasion",
     ];
     const safeUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
@@ -530,7 +555,7 @@ export async function DELETE(request: NextRequest) {
 
 /**
  * Vérifie si une table est déjà réservée pour un créneau donné.
- * Prend en compte la durée de la réservation (chevauchement).
+ * Prend en compte la durée de la réservation + le buffer de retournement.
  */
 async function checkTableConflict(
   supabase: ReturnType<typeof createServiceClient>,
@@ -538,12 +563,13 @@ async function checkTableConflict(
   date: string,
   timeSlot: string,
   duration: number,
-  excludeReservationId?: string
+  excludeReservationId?: string,
+  turnoverBuffer: number = 0
 ): Promise<boolean> {
-  // Calculer les bornes du créneau demandé
+  // Calculer les bornes du créneau demandé (durée + buffer)
   const [startH, startM] = timeSlot.split(":").map(Number);
   const startMinutes = startH * 60 + startM;
-  const endMinutes = startMinutes + duration;
+  const endMinutes = startMinutes + duration + turnoverBuffer;
 
   // Chercher les réservations existantes sur cette table ce jour-là
   let query = supabase
@@ -564,7 +590,8 @@ async function checkTableConflict(
   for (const resa of existingResas) {
     const [eH, eM] = resa.time_slot.split(":").map(Number);
     const existingStart = eH * 60 + eM;
-    const existingEnd = existingStart + (resa.duration || 90);
+    // La réservation existante occupe aussi la durée + le buffer
+    const existingEnd = existingStart + (resa.duration || 90) + turnoverBuffer;
 
     // Chevauchement : le nouveau créneau commence avant la fin de l'existant
     // ET finit après le début de l'existant

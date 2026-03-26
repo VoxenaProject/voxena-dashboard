@@ -25,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2, CalendarDays, Hourglass, AlertTriangle } from "lucide-react";
 import { ZONES } from "@/lib/floor-plan/zones";
+import { isValidPhone } from "@/lib/utils/phone";
 import type { Reservation, FloorTable } from "@/lib/supabase/types";
 
 // Créneaux horaires de 30 min de 11:00 à 23:00
@@ -89,6 +90,7 @@ export function ReservationDialog({
   const [tableId, setTableId] = useState<string>("");
   const [zoneFilter, setZoneFilter] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
 
   // État liste d'attente
   const [isWaitlist, setIsWaitlist] = useState(false);
@@ -112,27 +114,12 @@ export function ReservationDialog({
       setTableId(reservation.table_id || "");
       setIsWaitlist(reservation.status === "liste_attente");
       setNoTablesAvailable(false);
+      setPhoneError(false);
 
-      // Extraire les préférences et occasion des notes
-      const notesStr = reservation.notes || "";
-      const prefMatch = notesStr.match(/\[Préférences: ([^\]]+)\]/);
-      if (prefMatch) {
-        setPreferences(prefMatch[1].split(", "));
-      } else {
-        setPreferences([]);
-      }
-      const occMatch = notesStr.match(/\[Occasion: ([^\]]+)\]/);
-      if (occMatch) {
-        setOccasion(occMatch[1]);
-      } else {
-        setOccasion("Aucune");
-      }
-      // Notes nettoyées
-      const cleanNotes = notesStr
-        .replace(/\[Préférences: [^\]]+\]\s*/g, "")
-        .replace(/\[Occasion: [^\]]+\]\s*/g, "")
-        .trim();
-      setNotes(cleanNotes);
+      // Lire les préférences et occasion depuis les colonnes dédiées
+      setPreferences(reservation.preferences || []);
+      setOccasion(reservation.occasion || "Aucune");
+      setNotes(reservation.notes || "");
     } else {
       // Reset pour nouvelle réservation
       setDate(defaultDate || new Date().toISOString().split("T")[0]);
@@ -148,6 +135,7 @@ export function ReservationDialog({
       setZoneFilter("");
       setIsWaitlist(forceWaitlist);
       setNoTablesAvailable(false);
+      setPhoneError(false);
     }
   }, [reservation, defaultDate, open, forceWaitlist]);
 
@@ -210,6 +198,13 @@ export function ReservationDialog({
       return;
     }
 
+    // Validation du téléphone
+    if (!isValidPhone(customerPhone)) {
+      setPhoneError(true);
+      toast.error("Numéro de téléphone invalide");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -225,7 +220,7 @@ export function ReservationDialog({
         table_id: isWaitlist ? null : (tableId || null),
         notes: notes.trim() || null,
         preferences,
-        occasion,
+        occasion: occasion === "Aucune" ? null : occasion,
         source: "manual" as const,
         // Envoyer le statut waitlist si activé (uniquement en création)
         ...(isWaitlist && !isEdit ? { status: "liste_attente" } : {}),
@@ -353,8 +348,15 @@ export function ReservationDialog({
                 id="resa-phone"
                 placeholder="+32 470 12 34 56"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  setCustomerPhone(e.target.value);
+                  if (phoneError) setPhoneError(!isValidPhone(e.target.value));
+                }}
+                className={phoneError ? "border-destructive" : ""}
               />
+              {phoneError && (
+                <p className="text-xs text-destructive">Numéro de téléphone invalide</p>
+              )}
             </div>
           </div>
 
