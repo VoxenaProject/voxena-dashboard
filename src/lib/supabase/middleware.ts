@@ -36,7 +36,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/api/webhooks") ||
     pathname.startsWith("/api/orders/create") ||
     pathname.startsWith("/api/menu") ||
-    pathname.startsWith("/api/reservations/availability") ||
+    pathname.startsWith("/api/reservations") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/seed")
   ) {
