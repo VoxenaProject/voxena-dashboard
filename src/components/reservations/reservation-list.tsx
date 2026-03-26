@@ -712,6 +712,17 @@ export function ReservationList({
   );
 }
 
+// ── Gradient top border par statut ──
+const statusGradients: Record<ReservationStatus, string> = {
+  en_attente: "from-amber-400 via-amber-300 to-amber-400",
+  confirmee: "from-green-500 via-green-400 to-green-500",
+  assise: "from-blue-500 via-blue-400 to-blue-500",
+  terminee: "from-gray-300 via-gray-200 to-gray-300",
+  annulee: "from-red-400 via-red-300 to-red-400",
+  no_show: "from-red-600 via-red-500 to-red-600",
+  liste_attente: "from-amber-500 via-amber-400 to-amber-500",
+};
+
 // ── Carte de réservation — Design premium ──
 
 function ReservationCard({
@@ -739,6 +750,7 @@ function ReservationCard({
   const preferences = reservation.preferences || [];
   const displayNotes = reservation.notes?.trim();
   const timeDisplay = formatTime(reservation.time_slot);
+  const gradient = statusGradients[reservation.status] || statusGradients.en_attente;
 
   // Historique client — match par téléphone
   const customer = reservation.customer_phone
@@ -751,6 +763,16 @@ function ReservationCard({
   // Compter les no-shows aussi via le tag récidiviste (au moins 2 no-shows)
   const hasNoShowHistory = isRecidiviste || customerNoShowTags > 0;
 
+  // Tint subtil pour la colonne heure selon la zone
+  const zoneTintMap: Record<string, string> = {
+    salle: "rgba(96, 165, 250, 0.04)",
+    terrasse: "rgba(52, 211, 153, 0.04)",
+    bar: "rgba(251, 191, 36, 0.04)",
+    salle_privee: "rgba(139, 92, 246, 0.04)",
+    vip: "rgba(234, 179, 8, 0.04)",
+  };
+  const timeColumnTint = table?.zone ? zoneTintMap[table.zone] : undefined;
+
   return (
     <motion.div
       layout
@@ -761,21 +783,28 @@ function ReservationCard({
         transition: { delay: index * 0.03, type: "spring", damping: 25, stiffness: 300 },
       }}
       exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-      className={`group relative rounded-xl border bg-card transition-all duration-200 cursor-pointer
+      className={`group relative rounded-xl border bg-card transition-all duration-200 cursor-pointer overflow-hidden
         ${isPending ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15),0_2px_8px_rgba(245,158,11,0.08)]" : "shadow-card border-border"}
         ${isNew ? "ring-2 ring-violet/40 shadow-[0_0_20px_rgba(66,55,196,0.12)]" : ""}
         hover:shadow-card-hover hover:-translate-y-[1px]
       `}
+      style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
       onClick={() => onEdit(reservation)}
     >
+      {/* Gradient top border subtil (2px) */}
+      <div className={`h-[2px] bg-gradient-to-r ${gradient} opacity-60`} />
+
       {/* Barre d'accentuation latérale pour les réservations en attente */}
       {isPending && (
         <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-amber-400" />
       )}
 
       <div className="flex items-stretch p-4">
-        {/* Colonne gauche : heure en gros + couverts */}
-        <div className="flex-shrink-0 flex flex-col items-center justify-center pr-4 border-r border-border/50 min-w-[72px]">
+        {/* Colonne gauche : heure en gros + couverts — tint subtil selon la zone */}
+        <div
+          className="flex-shrink-0 flex flex-col items-center justify-center pr-4 border-r border-border/50 min-w-[72px] rounded-l-lg"
+          style={timeColumnTint ? { backgroundColor: timeColumnTint } : undefined}
+        >
           <span className="font-mono text-2xl font-bold text-foreground leading-none tracking-tight">
             {timeDisplay}
           </span>
@@ -791,20 +820,35 @@ function ReservationCard({
         <div className="flex-1 min-w-0 pl-4 space-y-2">
           {/* Ligne 1 : nom + badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-semibold text-sm text-foreground truncate ${status.strikethrough ? "line-through opacity-60" : ""}`}>
+            {/* Nom client — text-base au lieu de text-sm */}
+            <span className={`font-semibold text-base text-foreground truncate ${status.strikethrough ? "line-through opacity-60" : ""}`}>
               {reservation.customer_name}
             </span>
 
-            {/* Étoile VIP */}
+            {/* Étoile VIP avec shimmer doré */}
             {isVip && (
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" />
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 badge-gold-shimmer">
+                <Star className="w-3 h-3 text-amber-500 fill-amber-400 flex-shrink-0" />
+                VIP
+              </span>
             )}
 
-            {/* Badge statut */}
+            {/* Badge statut avec glass effect */}
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${status.bg} ${status.color} ${status.dashed ? "border border-dashed border-amber-400" : ""}`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium backdrop-blur-sm ${status.color} ${status.dashed ? "border border-dashed border-amber-400" : ""}`}
+              style={{
+                backgroundColor: `color-mix(in srgb, ${
+                  reservation.status === "en_attente" ? "#f59e0b" :
+                  reservation.status === "confirmee" ? "#22c55e" :
+                  reservation.status === "assise" ? "#3b82f6" :
+                  reservation.status === "annulee" || reservation.status === "no_show" ? "#ef4444" :
+                  "#6b7280"
+                } 8%, transparent)`,
+              }}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${isNew ? "animate-pulse" : ""}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${
+                isNew || reservation.status === "en_attente" || reservation.status === "assise" ? "pulse-dot-live" : ""
+              }`} />
               {status.label}
             </span>
 
@@ -815,9 +859,9 @@ function ReservationCard({
               </span>
             )}
 
-            {/* Badge client fidèle */}
+            {/* Badge client fidèle avec violet glow */}
             {isFidele && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet/10 text-violet border border-violet/20">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet/10 text-violet border border-violet/20 badge-violet-glow">
                 Client fidèle
               </span>
             )}
@@ -857,11 +901,11 @@ function ReservationCard({
               <MapPin className="w-3 h-3" />
               {table ? table.name : "Pas de table"}
               {table && (() => {
-                const zoneConf = getZoneConfig(table.zone || "salle");
+                const zc = getZoneConfig(table.zone || "salle");
                 return (
-                  <span className={`inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${zoneConf.color}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${zoneConf.dotColor}`} />
-                    {zoneConf.label}
+                  <span className={`inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${zc.color}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${zc.dotColor}`} />
+                    {zc.label}
                   </span>
                 );
               })()}
@@ -889,7 +933,7 @@ function ReservationCard({
           )}
         </div>
 
-        {/* Colonne droite : actions rapides */}
+        {/* Colonne droite : actions rapides avec hover scale */}
         <div
           className="flex items-center gap-1.5 flex-shrink-0 pl-3 opacity-80 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
@@ -898,7 +942,7 @@ function ReservationCard({
             <>
               <Button
                 size="xs"
-                className="bg-green hover:bg-green/90 text-white gap-1"
+                className="bg-green hover:bg-green/90 text-white gap-1 btn-lift"
                 onClick={() => onStatusChange(reservation.id, "confirmee")}
               >
                 <UserCheck className="w-3 h-3" />
@@ -907,7 +951,7 @@ function ReservationCard({
               <Button
                 size="xs"
                 variant="destructive"
-                className="gap-1"
+                className="gap-1 btn-lift"
                 onClick={() => onStatusChange(reservation.id, "annulee")}
               >
                 <UserX className="w-3 h-3" />
@@ -919,7 +963,7 @@ function ReservationCard({
             <>
               <Button
                 size="xs"
-                className="bg-blue hover:bg-blue/90 text-white gap-1"
+                className="bg-blue hover:bg-blue/90 text-white gap-1 btn-lift"
                 onClick={() => onStatusChange(reservation.id, "assise")}
               >
                 <Armchair className="w-3 h-3" />
@@ -928,7 +972,7 @@ function ReservationCard({
               <Button
                 size="xs"
                 variant="destructive"
-                className="gap-1"
+                className="gap-1 btn-lift"
                 onClick={() => onStatusChange(reservation.id, "annulee")}
               >
                 <UserX className="w-3 h-3" />
@@ -940,7 +984,7 @@ function ReservationCard({
             <Button
               size="xs"
               variant="secondary"
-              className="gap-1"
+              className="gap-1 btn-lift"
               onClick={() => onStatusChange(reservation.id, "terminee")}
             >
               <CheckCircle2 className="w-3 h-3" />

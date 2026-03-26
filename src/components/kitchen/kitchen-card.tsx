@@ -114,7 +114,7 @@ export function KitchenCard({
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
     >
       <div
-        className={`rounded-xl overflow-hidden transition-all ${
+        className={`rounded-xl overflow-hidden transition-all kds-card-border ${
           isFlashing ? "ring-2 ring-green-400 ring-offset-2 ring-offset-[#0a0a1a]" : ""
         }`}
         style={{

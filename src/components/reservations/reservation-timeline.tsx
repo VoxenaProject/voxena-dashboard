@@ -19,54 +19,68 @@ const ROW_HEIGHT = 48; // px par ligne de table
 const LABEL_WIDTH = 180; // largeur colonne noms de tables
 const ZONE_HEADER_HEIGHT = 32; // hauteur header zone
 
-/** Couleurs des statuts pour les blocs Gantt */
+/** Couleurs des statuts pour les blocs Gantt — avec gradients premium */
 const statusStyles: Record<
   ReservationStatus,
-  { bg: string; border: string; text: string; label: string; strikethrough?: boolean; dashed?: boolean }
+  { bg: string; gradient: string; border: string; text: string; label: string; cssClass: string; strikethrough?: boolean; dashed?: boolean }
 > = {
   en_attente: {
     bg: "bg-amber-100/80",
+    gradient: "linear-gradient(180deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.15) 100%)",
     border: "border-amber-400",
     text: "text-amber-900",
     label: "En attente",
+    cssClass: "resa-block-en_attente",
   },
   confirmee: {
     bg: "bg-green-100/80",
+    gradient: "linear-gradient(180deg, rgba(74, 222, 128, 0.25) 0%, rgba(34, 197, 94, 0.15) 100%)",
     border: "border-green-400",
     text: "text-green-900",
     label: "Confirmee",
+    cssClass: "resa-block-confirmee",
   },
   assise: {
     bg: "bg-blue-100/80",
+    gradient: "linear-gradient(180deg, rgba(96, 165, 250, 0.25) 0%, rgba(59, 130, 246, 0.15) 100%)",
     border: "border-blue-400",
     text: "text-blue-900",
     label: "Assise",
+    cssClass: "resa-block-assise",
   },
   terminee: {
     bg: "bg-gray-100/80",
+    gradient: "linear-gradient(180deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.1) 100%)",
     border: "border-gray-300",
     text: "text-gray-600",
     label: "Terminee",
+    cssClass: "resa-block-terminee",
   },
   annulee: {
     bg: "bg-red-100/80",
+    gradient: "linear-gradient(180deg, rgba(248, 113, 113, 0.2) 0%, rgba(239, 68, 68, 0.12) 100%)",
     border: "border-red-400",
     text: "text-red-800",
     label: "Annulee",
+    cssClass: "resa-block-annulee",
     strikethrough: true,
   },
   no_show: {
     bg: "bg-red-200/80",
+    gradient: "linear-gradient(180deg, rgba(252, 165, 165, 0.25) 0%, rgba(239, 68, 68, 0.18) 100%)",
     border: "border-red-500",
     text: "text-red-900",
     label: "No-show",
+    cssClass: "resa-block-no_show",
     strikethrough: true,
   },
   liste_attente: {
     bg: "bg-amber-50/60",
+    gradient: "linear-gradient(180deg, rgba(253, 230, 138, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%)",
     border: "border-amber-400",
     text: "text-amber-800",
     label: "Liste d'attente",
+    cssClass: "resa-block-liste_attente",
     dashed: true,
   },
 };
@@ -270,10 +284,10 @@ export function ReservationTimeline({
 
               return (
                 <div key={group.zone}>
-                  {/* Header zone */}
+                  {/* Header zone — gradient subtil */}
                   <button
                     onClick={() => toggleZone(group.zone)}
-                    className={`w-full flex items-center gap-2 px-3 text-xs font-semibold border-b transition-colors hover:opacity-80 cursor-pointer ${zoneConfig.color}`}
+                    className={`w-full flex items-center gap-2 px-3 text-xs font-semibold border-b transition-all duration-200 hover:opacity-80 cursor-pointer ${zoneConfig.color}`}
                     style={{ height: ZONE_HEADER_HEIGHT }}
                   >
                     {isCollapsed ? (
@@ -288,17 +302,19 @@ export function ReservationTimeline({
                     </span>
                   </button>
 
-                  {/* Lignes tables */}
+                  {/* Lignes tables — alternance subtile */}
                   <AnimatePresence initial={false}>
                     {!isCollapsed &&
-                      group.tables.map((table) => (
+                      group.tables.map((table, tableIndex) => (
                         <motion.div
                           key={table.id}
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: ROW_HEIGHT, opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="flex items-center px-3 border-b overflow-hidden"
+                          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                          className={`flex items-center px-3 border-b overflow-hidden ${
+                            tableIndex % 2 === 1 ? "bg-muted/20" : ""
+                          }`}
                         >
                           <span className="text-sm font-medium text-foreground truncate">
                             {table.name}
@@ -315,24 +331,26 @@ export function ReservationTimeline({
           </div>
 
           {/* Zone principale scrollable */}
-          <div ref={scrollRef} className="flex-1 overflow-x-auto">
+          <div ref={scrollRef} className="flex-1 overflow-x-auto timeline-scroll">
             <div style={{ width: TOTAL_WIDTH, position: "relative" }}>
-              {/* Heatmap d'occupation */}
+              {/* Heatmap d'occupation — smooth gradient transitions */}
               <div
                 className="flex border-b"
                 style={{ height: ZONE_HEADER_HEIGHT }}
               >
                 {occupancyHeatmap.map((ratio, i) => {
-                  let bg = "bg-green-100";
-                  if (ratio > 0.7) bg = "bg-red-200";
-                  else if (ratio > 0.4) bg = "bg-amber-200";
-                  else if (ratio > 0.1) bg = "bg-green-200";
+                  // Smooth gradient basé sur le ratio exact
+                  let bgColor = "rgba(34, 197, 94, 0.1)";
+                  if (ratio > 0.7) bgColor = `rgba(239, 68, 68, ${0.15 + ratio * 0.15})`;
+                  else if (ratio > 0.4) bgColor = `rgba(245, 158, 11, ${0.1 + ratio * 0.2})`;
+                  else if (ratio > 0.1) bgColor = `rgba(34, 197, 94, ${0.08 + ratio * 0.25})`;
+                  else bgColor = `rgba(34, 197, 94, ${0.04 + ratio * 0.1})`;
                   return (
                     <div
                       key={i}
-                      className={`${bg} transition-colors border-r border-border/30`}
-                      style={{ width: SLOT_WIDTH, height: "100%" }}
-                      title={`${Math.round(ratio * 100)}% occupé`}
+                      className="heatmap-cell border-r border-border/20"
+                      style={{ width: SLOT_WIDTH, height: "100%", backgroundColor: bgColor }}
+                      title={`${Math.round(ratio * 100)}% occupe`}
                     />
                   );
                 })}
@@ -346,7 +364,7 @@ export function ReservationTimeline({
                 {TIME_LABELS.map((label, i) => (
                   <div
                     key={i}
-                    className="flex-shrink-0 flex items-center justify-center border-r border-border/30 text-xs font-mono text-muted-foreground select-none"
+                    className="flex-shrink-0 flex items-center justify-center border-r border-border/20 text-xs font-mono text-muted-foreground select-none"
                     style={{ width: SLOT_WIDTH }}
                   >
                     {label}
@@ -361,7 +379,7 @@ export function ReservationTimeline({
 
                 return (
                   <div key={group.zone}>
-                    {/* Zone header (barre coloree) */}
+                    {/* Zone header (barre coloree avec gradient subtil) */}
                     <div
                       className={`border-b ${zoneConfig.color}`}
                       style={{ height: ZONE_HEADER_HEIGHT }}
@@ -379,8 +397,8 @@ export function ReservationTimeline({
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: ROW_HEIGHT, opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className={`relative border-b overflow-hidden cursor-pointer ${
+                              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                              className={`relative border-b overflow-hidden cursor-pointer empty-slot-hover ${
                                 tableIndex % 2 === 0 ? "bg-card" : "bg-muted/10"
                               }`}
                               onClick={(e) => handleEmptyClick(table.id, e)}
@@ -394,22 +412,24 @@ export function ReservationTimeline({
                               {TIME_LABELS.map((_, i) => (
                                 <div
                                   key={i}
-                                  className="absolute top-0 bottom-0 border-r border-border/15"
+                                  className="absolute top-0 bottom-0 border-r border-border/10"
                                   style={{ left: i * SLOT_WIDTH }}
                                 />
                               ))}
 
-                              {/* Indicateur "+" au survol sur zone vide */}
+                              {/* Indicateur "+" au survol sur zone vide — avec dashed outline */}
                               {hoveredSlot?.tableId === table.id && (
                                 <div
-                                  className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-10 opacity-30"
-                                  style={{ left: hoveredSlot.x - 8 }}
+                                  className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center"
+                                  style={{ left: hoveredSlot.x - 12, width: 24, height: 24 }}
                                 >
-                                  <Plus className="w-4 h-4 text-violet" />
+                                  <div className="w-6 h-6 rounded-md border border-dashed border-violet/30 flex items-center justify-center bg-violet/5">
+                                    <Plus className="w-3 h-3 text-violet/50" />
+                                  </div>
                                 </div>
                               )}
 
-                              {/* Blocs de réservation */}
+                              {/* Blocs de réservation — premium avec gradient + shadow */}
                               {tableReservations.map((resa) => {
                                 const style = statusStyles[resa.status];
                                 const startMin = timeToMinutes(resa.time_slot);
@@ -425,15 +445,29 @@ export function ReservationTimeline({
                                     key={resa.id}
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    whileHover={{ scale: 1.02, zIndex: 20 }}
+                                    whileHover={{
+                                      scale: 1.02,
+                                      zIndex: 30,
+                                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                    }}
                                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                    className={`absolute top-1 bottom-1 rounded-md border ${style.bg} ${style.border} ${style.text} ${
+                                    className={`absolute top-1 bottom-1 rounded-lg border shadow-sm ${style.bg} ${style.border} ${style.text} ${style.cssClass} ${
                                       style.dashed ? "border-dashed border-2" : ""
                                     } px-1.5 flex items-center gap-1 overflow-hidden cursor-pointer select-none z-10`}
-                                    style={{ left, width: Math.max(width, 30) }}
+                                    style={{
+                                      left,
+                                      width: Math.max(width, 30),
+                                      backgroundImage: style.gradient,
+                                    }}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onReservationClick?.(resa);
+                                      // Brief pulse animation before opening
+                                      const el = e.currentTarget;
+                                      el.classList.add("block-click-pulse");
+                                      setTimeout(() => {
+                                        el.classList.remove("block-click-pulse");
+                                        onReservationClick?.(resa);
+                                      }, 200);
                                     }}
                                     onMouseEnter={(e) => {
                                       const rect = e.currentTarget.getBoundingClientRect();
@@ -446,7 +480,7 @@ export function ReservationTimeline({
                                     onMouseLeave={() => setTooltip(null)}
                                   >
                                     <span
-                                      className={`text-[11px] font-medium truncate leading-tight ${
+                                      className={`text-[11px] font-medium truncate leading-tight resa-text-shadow ${
                                         style.strikethrough ? "line-through" : ""
                                       }`}
                                     >
@@ -466,25 +500,37 @@ export function ReservationTimeline({
                 );
               })}
 
-              {/* Ligne "maintenant" */}
+              {/* Ligne "maintenant" — glow + label */}
               {showNowLine && (
                 <div
                   className="absolute top-0 bottom-0 z-30 pointer-events-none"
                   style={{ left: nowX }}
                 >
-                  {/* Triangle marqueur en haut */}
+                  {/* Label "Maintenant" en haut */}
                   <div
-                    className="absolute -top-0 -translate-x-1/2"
-                    style={{
-                      width: 0,
-                      height: 0,
-                      borderLeft: "5px solid transparent",
-                      borderRight: "5px solid transparent",
-                      borderTop: "6px solid #DC2626",
-                    }}
+                    className="absolute -translate-x-1/2 flex flex-col items-center"
+                    style={{ top: -2 }}
+                  >
+                    <span className="text-[9px] font-semibold text-red-500 bg-background/90 dark:bg-card/90 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap border border-red-200 dark:border-red-800/40">
+                      Maintenant
+                    </span>
+                    {/* Triangle marqueur */}
+                    <div
+                      style={{
+                        width: 0,
+                        height: 0,
+                        borderLeft: "5px solid transparent",
+                        borderRight: "5px solid transparent",
+                        borderTop: "5px solid #DC2626",
+                        marginTop: -1,
+                      }}
+                    />
+                  </div>
+                  {/* Ligne rouge avec glow */}
+                  <div
+                    className="absolute bottom-0 w-[2px] bg-red-500 -translate-x-1/2 now-line-glow"
+                    style={{ top: 22 }}
                   />
-                  {/* Ligne rouge */}
-                  <div className="absolute top-1.5 bottom-0 w-[2px] bg-red-500/70 -translate-x-1/2" />
                 </div>
               )}
             </div>

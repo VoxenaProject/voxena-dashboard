@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { MessageCircle, X, Send, Loader2, HelpCircle, Sun, Moon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +19,8 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
   const [chatOpen, setChatOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [iconRotating, setIconRotating] = useState(false);
+  const rotateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Lire la préférence de thème au montage
   useEffect(() => {
@@ -30,8 +32,16 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
     }
   }, []);
 
-  // Basculer le thème clair/sombre
+  // Cleanup du timer de rotation
+  useEffect(() => {
+    return () => {
+      if (rotateTimer.current) clearTimeout(rotateTimer.current);
+    };
+  }, []);
+
+  // Basculer le thème clair/sombre avec animation
   function toggleTheme() {
+    setIconRotating(true);
     const newDark = !isDark;
     setIsDark(newDark);
     document.documentElement.classList.toggle("dark", newDark);
@@ -40,6 +50,7 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
     } catch {
       // Navigation privée
     }
+    rotateTimer.current = setTimeout(() => setIconRotating(false), 500);
   }
 
   async function handleToggle(checked: boolean) {
@@ -74,13 +85,15 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
 
   return (
     <>
-      <div className="flex items-center justify-end gap-4 px-6 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-30">
+      <div className="flex items-center justify-end gap-3 px-6 h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-30">
         {/* Toggle Voxena */}
         <div className="flex items-center gap-2.5" data-tour="toggle-voxena">
           <div className="flex items-center gap-1.5">
             <span
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                agentActive ? "bg-green" : "bg-muted-foreground/30"
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                agentActive
+                  ? "bg-green glow-green-dot"
+                  : "bg-muted-foreground/30"
               }`}
             />
             <span className="text-xs font-medium text-muted-foreground">
@@ -94,11 +107,14 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
           />
         </div>
 
+        {/* Séparateur vertical */}
+        <div className="w-px h-5 bg-border/50" />
+
         {/* Relancer le tour */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => {
             try {
               localStorage.removeItem("voxena-tour-done");
@@ -111,26 +127,34 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
           <HelpCircle className="w-4 h-4" />
         </Button>
 
-        {/* Toggle dark mode */}
+        {/* Toggle dark mode avec rotation */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground transition-colors"
           onClick={toggleTheme}
           title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
         >
-          {isDark ? (
-            <Sun className="w-4 h-4" />
-          ) : (
-            <Moon className="w-4 h-4" />
-          )}
+          <span
+            className="inline-flex items-center justify-center"
+            style={{
+              transition: "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              transform: iconRotating ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </span>
         </Button>
 
-        {/* Bouton support */}
+        {/* Bouton support avec pulse subtil */}
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1.5 text-xs h-9 support-pulse"
           onClick={() => setChatOpen(true)}
           data-tour="support-btn"
         >

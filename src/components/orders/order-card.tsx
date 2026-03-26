@@ -13,10 +13,11 @@ import {
   ChevronRight,
   Timer,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "./order-status-badge";
+import { StatusFlash } from "@/components/ui/success-animation";
 import { getNextAction, isTerminalStatus } from "@/lib/orders/status";
 import type { Order, OrderItem, OrderStatus, Customer } from "@/lib/supabase/types";
 
@@ -45,6 +46,16 @@ function getProgress(status: OrderStatus): number {
   }
 }
 
+// Couleur de flash selon le nouveau statut
+const statusFlashColors: Record<string, string> = {
+  en_preparation: "rgba(66, 55, 196, 0.08)",
+  prete: "rgba(26, 154, 90, 0.08)",
+  en_livraison: "rgba(116, 163, 255, 0.08)",
+  livree: "rgba(26, 154, 90, 0.1)",
+  recuperee: "rgba(26, 154, 90, 0.1)",
+  annulee: "rgba(239, 68, 68, 0.08)",
+};
+
 interface OrderCardProps {
   order: Order;
   onStatusChange?: (orderId: string, status: OrderStatus) => void | Promise<void>;
@@ -61,6 +72,11 @@ export function OrderCard({
   customers = [],
 }: OrderCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [showFlash, setShowFlash] = React.useState(false);
+  const [flashColor, setFlashColor] = React.useState("rgba(66, 55, 196, 0.08)");
+  const prevStatusRef = React.useRef(order.status);
+  const [showTooltip, setShowTooltip] = React.useState(false);
+
   const items = (order.items || []) as OrderItem[];
   const itemsSummary = items.map((i) => `${i.quantity}x ${i.name}`).join(", ");
   const next = getNextAction(order.status, order.order_type);
@@ -84,6 +100,31 @@ export function OrderCard({
     return `~${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   })();
 
+  // Détecter les changements de statut pour le flash
+  React.useEffect(() => {
+    if (prevStatusRef.current !== order.status) {
+      setFlashColor(statusFlashColors[order.status] || "rgba(66, 55, 196, 0.08)");
+      setShowFlash(true);
+      const t = setTimeout(() => setShowFlash(false), 600);
+      prevStatusRef.current = order.status;
+      return () => clearTimeout(t);
+    }
+  }, [order.status]);
+
+  // Détecter si l'heure est urgente (<5 min)
+  const isUrgent = React.useMemo(() => {
+    if (!estimatedTime || isDone) return false;
+    // Essayer de parser l'heure (format HH:MM ou ~HH:MM)
+    const cleanTime = estimatedTime.replace("~", "");
+    const match = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return false;
+    const now = new Date();
+    const target = new Date();
+    target.setHours(parseInt(match[1]), parseInt(match[2]), 0, 0);
+    const diffMin = (target.getTime() - now.getTime()) / 60000;
+    return diffMin >= 0 && diffMin < 5;
+  }, [estimatedTime, isDone]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -92,10 +133,16 @@ export function OrderCard({
       layout
     >
       <Card
-        className={`shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden relative ${
-          isNew ? "ring-2 ring-green/40" : ""
-        } ${isDone ? "opacity-60" : ""}`}
+        className={`shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden relative
+          hover:-translate-y-0.5
+          ${isNew ? "ring-2 ring-green/40" : ""}
+          ${isDone ? "opacity-60" : ""}
+        `}
+        style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
       >
+        {/* Flash overlay lors d'un changement de statut */}
+        <StatusFlash active={showFlash} color={flashColor} />
+
         {/* Bandeau type + heure */}
         <div
           className={`px-4 py-2 flex items-center justify-between ${
@@ -127,9 +174,12 @@ export function OrderCard({
 
           <div className="flex items-center gap-3">
             {estimatedTime && (
-              <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
+              <div className={`flex items-center gap-1 text-xs font-semibold text-foreground ${isUrgent ? "animate-urgent text-red-600" : ""}`}>
                 <Timer className="w-3.5 h-3.5" />
                 {isLivraison ? "Livrer" : "Retrait"} {estimatedTime}
+                {isUrgent && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 pulse-dot-live" />
+                )}
               </div>
             )}
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -143,15 +193,16 @@ export function OrderCard({
         </div>
 
         <div className="p-4">
-          {/* Progress bar */}
+          {/* Progress bar avec animation de largeur */}
           {!isDone && order.status !== "annulee" && (
             <div className="flex items-center gap-1 mb-3">
               {Array.from({ length: getStepCount(order.order_type) }).map((_, i) => (
                 <div key={i} className="flex-1 flex items-center gap-1">
                   <div
-                    className={`h-1 flex-1 rounded-full transition-colors duration-500 ${
+                    className={`h-1 flex-1 rounded-full transition-all duration-500 ease-out ${
                       i <= progress ? "bg-violet" : "bg-border"
                     }`}
+                    style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
                   />
                 </div>
               ))}
@@ -193,10 +244,35 @@ export function OrderCard({
                 )}
               </div>
 
-              {/* Articles */}
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                {itemsSummary}
-              </p>
+              {/* Articles avec tooltip au hover */}
+              <div
+                className="relative"
+                onMouseEnter={() => items.length > 2 && setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+              >
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {itemsSummary}
+                </p>
+                {/* Tooltip détaillé des articles */}
+                <AnimatePresence>
+                  {showTooltip && items.length > 2 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-xs text-muted-foreground max-w-[280px]"
+                    >
+                      {items.map((item, idx) => (
+                        <div key={idx} className="py-0.5">
+                          <span className="font-medium text-foreground">{item.quantity}x</span>{" "}
+                          {item.name}
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Instructions spéciales */}
               {order.special_instructions && (
@@ -219,7 +295,7 @@ export function OrderCard({
                   <Button
                     size="sm"
                     disabled={isUpdating}
-                    className={`${next.color} text-xs font-semibold shadow-sm`}
+                    className={`${next.color} text-xs font-semibold shadow-sm btn-lift`}
                     onClick={async (e) => {
                       e.preventDefault();
                       if (isUpdating) return;

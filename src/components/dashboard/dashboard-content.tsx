@@ -708,7 +708,7 @@ function ReservationsSection({
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.45 + i * 0.04, duration: 0.3 }}
                     >
-                      <div className="flex items-center justify-between py-3 -mx-3 px-3 rounded-lg hover:bg-muted/30 transition-colors">
+                      <div className="relative flex items-center justify-between py-3 -mx-3 px-3 rounded-lg hover:bg-muted/30 transition-all duration-200">
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Heure */}
                           <span className="font-mono text-base font-bold text-foreground w-[52px] flex-shrink-0">
@@ -739,9 +739,16 @@ function ReservationsSection({
                           </div>
                         </div>
 
-                        {/* Droite : badge + actions */}
+                        {/* Droite : badge avec glass effect + actions */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${statusInfo.className}`}>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium backdrop-blur-sm ${statusInfo.className}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              resa.status === "en_attente" ? "bg-amber-500 pulse-dot-live" :
+                              resa.status === "confirmee" ? "bg-green-500" :
+                              "bg-blue-500"
+                            }`} />
                             {statusInfo.label}
                           </span>
 
@@ -749,7 +756,7 @@ function ReservationsSection({
                             <div className="flex items-center gap-1">
                               <Button
                                 size="xs"
-                                className="bg-green hover:bg-green/90 text-white gap-1"
+                                className="bg-green hover:bg-green/90 text-white gap-1 btn-lift"
                                 onClick={() => handleConfirm(resa.id)}
                                 disabled={confirmingId === resa.id}
                               >
@@ -759,6 +766,7 @@ function ReservationsSection({
                               <Button
                                 size="xs"
                                 variant="destructive"
+                                className="btn-lift"
                                 onClick={() => handleCancel(resa.id)}
                                 disabled={cancellingId === resa.id}
                               >

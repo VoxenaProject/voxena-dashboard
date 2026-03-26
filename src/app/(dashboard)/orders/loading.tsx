@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 
 export default function OrdersLoading() {
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:px-8 lg:py-6">
       <div className="mb-8">
         <Skeleton className="h-8 w-40 mb-2" />
         <Skeleton className="h-4 w-56" />

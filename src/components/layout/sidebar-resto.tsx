@@ -25,6 +25,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UpsellModal } from "@/components/ui/upsell-modal";
 import type { SubscriptionPlan } from "@/lib/supabase/types";
 
+// Labels lisibles pour les plans
+const planLabels: Record<SubscriptionPlan, string> = {
+  orders: "Orders",
+  tables: "Tables",
+  pro: "Pro",
+};
+
 // Définition des items de navigation avec les plans requis
 const navItems = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboard, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
@@ -35,6 +42,10 @@ const navItems = [
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] as SubscriptionPlan[] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
 ];
+
+// Items principaux vs paramètres (séparateur entre les deux groupes)
+const mainNavItems = navItems.filter((item) => item.href !== "/settings");
+const settingsNavItems = navItems.filter((item) => item.href === "/settings");
 
 // Composant pour les items de navigation verrouillés avec tooltip
 function LockedNavItem({
@@ -69,19 +80,23 @@ function LockedNavItem({
         onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full opacity-40 cursor-not-allowed ${
+        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-200 w-full opacity-30 cursor-not-allowed ${
           collapsed ? "justify-center" : ""
-        } text-white/50`}
+        } text-white/40`}
       >
         <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
         {!collapsed && (
           <span className="flex items-center gap-2">
             {item.label}
-            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span className="gradient-gold">
+              <Crown className="w-3.5 h-3.5" />
+            </span>
           </span>
         )}
         {collapsed && (
-          <Crown className="w-3 h-3 text-amber-400 absolute -top-0.5 -right-0.5" />
+          <span className="gradient-gold absolute -top-0.5 -right-0.5">
+            <Crown className="w-3 h-3" />
+          </span>
         )}
       </button>
 
@@ -129,19 +144,82 @@ function SidebarContent({
     setUpsellOpen(true);
   }
 
+  // Rendu d'un groupe de nav items
+  function renderNavItems(items: typeof navItems) {
+    return items.map((item) => {
+      const isAvailable = item.plans.includes(plan);
+      const isActive =
+        isAvailable &&
+        (pathname === item.href ||
+          (item.href !== "/" && pathname.startsWith(item.href)));
+
+      // Item verrouillé — pas de navigation, affichage grisé + tooltip
+      if (!isAvailable) {
+        return (
+          <LockedNavItem
+            key={item.href}
+            item={item}
+            collapsed={collapsed}
+            onClick={() => handleLockedClick(item.label)}
+          />
+        );
+      }
+
+      // Item disponible — navigation normale
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-200 ${
+            collapsed ? "justify-center" : ""
+          } ${
+            isActive
+              ? "text-white bg-white/[0.08]"
+              : "text-white/50 hover:text-white/80 hover:bg-white/[0.06] hover:backdrop-blur-sm"
+          }`}
+        >
+          {/* Barre d'accent active à gauche */}
+          {isActive && (
+            <motion.div
+              layoutId="sidebar-active-bar"
+              className="sidebar-active-bar"
+              transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+            />
+          )}
+          {/* Fond actif animé */}
+          {isActive && (
+            <motion.div
+              layoutId="sidebar-active"
+              className="absolute inset-0 rounded-xl bg-white/[0.08]"
+              transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+            />
+          )}
+          <item.icon
+            className={`w-[18px] h-[18px] flex-shrink-0 relative z-10 transition-all duration-200 ${
+              isActive ? "text-violet drop-shadow-[0_0_8px_rgba(66,55,196,0.6)]" : ""
+            }`}
+          />
+          {!collapsed && (
+            <span className="relative z-10">{item.label}</span>
+          )}
+        </Link>
+      );
+    });
+  }
+
   return (
     <>
       <aside
-        className={`bg-navy-deep text-white/70 flex flex-col min-h-screen transition-all duration-300 ${
+        className={`noise-bg bg-gradient-to-b from-navy-deep to-navy text-white/50 flex flex-col min-h-screen transition-all duration-300 ${
           collapsed ? "w-[68px]" : "w-64"
         }`}
       >
-        {/* Logo */}
-        <div className="p-5 pb-4 flex items-center justify-between">
+        {/* Logo — plus d'espace vertical */}
+        <div className="relative z-10 py-6 px-5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <svg
-              width="28"
-              height="28"
+              width="32"
+              height="32"
               viewBox="543 -20 486 570"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -170,7 +248,7 @@ function SidebarContent({
               <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="font-heading text-base font-bold text-white tracking-tight"
+                className="font-heading text-base font-bold text-white tracking-tight logo-glow"
               >
                 VOXENA
               </motion.span>
@@ -179,84 +257,63 @@ function SidebarContent({
           {onToggle && !collapsed && (
             <button
               onClick={onToggle}
-              className="text-white/40 hover:text-white/70 transition-colors hidden lg:block"
+              className="text-white/30 hover:text-white/60 transition-all duration-200 hidden lg:block"
             >
               <PanelLeftClose className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 space-y-1 mt-2" data-tour="sidebar-nav">
-          {navItems.map((item) => {
-            const isAvailable = item.plans.includes(plan);
-            const isActive =
-              isAvailable &&
-              (pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(item.href)));
+        {/* Section label */}
+        {!collapsed && (
+          <div className="relative z-10 px-6 mb-2">
+            <span className="text-[10px] uppercase tracking-widest text-white/30 font-medium">
+              Navigation
+            </span>
+          </div>
+        )}
 
-            // Item verrouillé — pas de navigation, affichage grisé + tooltip
-            if (!isAvailable) {
-              return (
-                <LockedNavItem
-                  key={item.href}
-                  item={item}
-                  collapsed={collapsed}
-                  onClick={() => handleLockedClick(item.label)}
-                />
-              );
-            }
+        {/* Navigation principale */}
+        <nav className="relative z-10 flex-1 px-3 mt-1" data-tour="sidebar-nav">
+          <div className="space-y-1">
+            {renderNavItems(mainNavItems)}
+          </div>
 
-            // Item disponible — navigation normale
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  collapsed ? "justify-center" : ""
-                } ${
-                  isActive
-                    ? "text-white"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active"
-                    className="absolute inset-0 rounded-lg bg-violet/20 border border-violet/20"
-                    transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                  />
-                )}
-                <item.icon
-                  className={`w-[18px] h-[18px] flex-shrink-0 relative z-10 ${
-                    isActive ? "text-blue" : ""
-                  }`}
-                />
-                {!collapsed && (
-                  <span className="relative z-10">{item.label}</span>
-                )}
-              </Link>
-            );
-          })}
+          {/* Séparateur entre les groupes */}
+          <div className="my-4 mx-2 border-t border-white/[0.06]" />
+
+          {/* Paramètres */}
+          <div className="space-y-1">
+            {renderNavItems(settingsNavItems)}
+          </div>
         </nav>
 
         {/* Collapse toggle (desktop, collapsed state) */}
         {onToggle && collapsed && (
-          <div className="px-3 mb-2">
+          <div className="relative z-10 px-3 mb-2">
             <button
               onClick={onToggle}
-              className="w-full flex items-center justify-center py-2.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
+              className="w-full flex items-center justify-center py-2.5 rounded-xl text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all duration-200"
             >
               <PanelLeft className="w-[18px] h-[18px]" />
             </button>
           </div>
         )}
 
-        {/* Déconnexion */}
-        <div className="p-3 border-t border-white/[0.06]">
+        {/* Plan badge + Déconnexion */}
+        <div className="relative z-10 p-3 border-t border-white/[0.06]">
+          {/* Badge du plan actuel */}
+          {!collapsed && (
+            <div className="px-3 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-violet/20 text-violet border border-violet/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet" />
+                {planLabels[plan]}
+              </span>
+            </div>
+          )}
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.04] w-full transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide text-white/40 hover:text-white/80 hover:bg-white/[0.06] w-full transition-all duration-200 opacity-60 hover:opacity-100 ${
               collapsed ? "justify-center" : ""
             }`}
           >
@@ -283,7 +340,7 @@ export function SidebarResto({ plan = "orders" }: { plan?: SubscriptionPlan }) {
   if (isMobile) {
     return (
       <Sheet>
-        <SheetTrigger className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-navy-deep text-white/80 shadow-lg lg:hidden">
+        <SheetTrigger className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-navy-deep text-white/80 shadow-lg lg:hidden">
           <Menu className="w-5 h-5" />
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64 bg-navy-deep border-none">

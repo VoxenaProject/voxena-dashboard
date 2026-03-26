@@ -78,6 +78,9 @@ function getStatusConfig(
   }
 }
 
+// Statuts actifs qui méritent un point pulsant
+const activeStatuses = new Set<OrderStatus>(["nouvelle", "en_preparation", "en_livraison"]);
+
 export function OrderStatusBadge({
   status,
   orderType,
@@ -87,11 +90,15 @@ export function OrderStatusBadge({
 }) {
   const config = getStatusConfig(status, orderType);
   const Icon = config.icon;
+  const isActive = activeStatuses.has(status);
 
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${config.className}`}
     >
+      {isActive && (
+        <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot-live" />
+      )}
       <Icon className="w-3 h-3" />
       {config.label}
     </span>

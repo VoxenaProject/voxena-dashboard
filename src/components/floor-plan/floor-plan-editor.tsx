@@ -378,8 +378,8 @@ export function FloorPlanEditor({
 
       {/* Éditeur (tablette+) */}
       <div className="hidden md:flex flex-col h-full gap-4">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* Toolbar — glass effect */}
+        <div className="flex items-center justify-between gap-3 flex-wrap toolbar-glass rounded-xl p-3 border border-border/50 shadow-sm">
           <div className="flex items-center gap-3">
             {/* Ajouter une table */}
             <DropdownMenu>
@@ -416,12 +416,12 @@ export function FloorPlanEditor({
             {/* Séparateur */}
             <div className="w-px h-6 bg-border" />
 
-            {/* Undo / Redo */}
+            {/* Undo / Redo — clearer disabled state */}
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className={`h-8 w-8 transition-all ${history.length === 0 ? "opacity-30" : "hover:bg-accent"}`}
                 onClick={undo}
                 disabled={history.length === 0}
                 title="Annuler (Ctrl+Z)"
@@ -431,7 +431,7 @@ export function FloorPlanEditor({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className={`h-8 w-8 transition-all ${undoStack.length === 0 ? "opacity-30" : "hover:bg-accent"}`}
                 onClick={redo}
                 disabled={undoStack.length === 0}
                 title="Rétablir (Ctrl+Shift+Z)"
@@ -503,8 +503,8 @@ export function FloorPlanEditor({
 
         {/* Zone principale : canvas + panneau latéral */}
         <div className="flex gap-4 flex-1 min-h-0">
-          {/* Canvas avec zoom */}
-          <Card className="flex-1 overflow-hidden relative p-0">
+          {/* Canvas avec zoom — dot grid + inner shadow */}
+          <Card className="flex-1 overflow-hidden relative p-0 shadow-inner">
             <div
               ref={canvasRef}
               className="overflow-auto h-full"
@@ -522,17 +522,17 @@ export function FloorPlanEditor({
                 >
                   <div
                     onClick={handleCanvasClick}
-                    className="relative"
+                    className="relative floor-canvas-grid"
                     style={{
                       width: CANVAS_WIDTH,
                       height: CANVAS_HEIGHT,
-                      backgroundImage: `
-                        linear-gradient(to right, rgba(66, 55, 196, 0.04) 1px, transparent 1px),
-                        linear-gradient(to bottom, rgba(66, 55, 196, 0.04) 1px, transparent 1px)
-                      `,
-                      backgroundSize: `${GRID_SIZE * 2}px ${GRID_SIZE * 2}px`,
                     }}
                   >
+                    {/* Vignette overlay pour la profondeur */}
+                    <div
+                      className="absolute inset-0 pointer-events-none floor-canvas-vignette"
+                      style={{ zIndex: 0 }}
+                    />
                     {/* Tables (filtrées par zone active) */}
                     {tables
                       .filter((t) =>
@@ -568,45 +568,45 @@ export function FloorPlanEditor({
               </DndContext>
             </div>
 
-            {/* Contrôles de zoom (en bas à droite du canvas) */}
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/90 backdrop-blur-sm border rounded-lg shadow-sm p-1 z-20">
+            {/* Contrôles de zoom (en bas à droite du canvas) — glass + bigger targets */}
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-xl border rounded-xl shadow-md p-1.5 z-20">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8 rounded-lg"
                 onClick={zoomOut}
                 disabled={zoom <= 0.5}
-                title="Dézoomer"
+                title="Dezoomer"
               >
-                <Minus className="w-3.5 h-3.5" />
+                <Minus className="w-4 h-4" />
               </Button>
               <button
                 onClick={zoomReset}
-                className="px-2 py-0.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors min-w-[3.5rem] text-center"
-                title="Réinitialiser le zoom"
+                className="px-2.5 py-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors min-w-[3.5rem] text-center rounded-md hover:bg-accent"
+                title="Reinitialiser le zoom"
               >
                 {Math.round(zoom * 100)}%
               </button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8 rounded-lg"
                 onClick={zoomIn}
                 disabled={zoom >= 2.0}
                 title="Zoomer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </Button>
-              <div className="w-px h-4 bg-border mx-0.5" />
+              <div className="w-px h-5 bg-border mx-0.5" />
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8 rounded-lg"
                 onClick={zoomReset}
                 disabled={zoom === 1.0}
-                title="Réinitialiser à 100%"
+                title="Reinitialiser a 100%"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-4 h-4" />
               </Button>
             </div>
           </Card>
@@ -616,20 +616,20 @@ export function FloorPlanEditor({
             {selectedTable ? (
               <motion.div
                 key="panel"
-                initial={{ opacity: 0, x: 16 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 16 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                 className="w-[280px] shrink-0"
               >
                 <Card className="p-4 h-full">
                   <div className="flex flex-col gap-4">
                     <div>
                       <h3 className="font-heading text-sm font-semibold">
-                        Propriétés
+                        Proprietes
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Modifier la table sélectionnée
+                        Modifier la table selectionnee
                       </p>
                     </div>
 
@@ -647,16 +647,16 @@ export function FloorPlanEditor({
                             { name: e.target.value }
                           )
                         }
-                        className="h-8 text-sm"
+                        className="h-8 text-sm rounded-xl"
                       />
                     </div>
 
-                    {/* Capacité */}
+                    {/* Capacite */}
                     <div className="space-y-1.5">
                       <Label htmlFor="table-capacity" className="text-xs">
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          Capacité
+                          Capacite
                         </span>
                       </Label>
                       <Input
@@ -671,7 +671,7 @@ export function FloorPlanEditor({
                             { capacity: parseInt(e.target.value) || 1 }
                           )
                         }
-                        className="h-8 text-sm"
+                        className="h-8 text-sm rounded-xl"
                       />
                     </div>
 
@@ -781,12 +781,12 @@ export function FloorPlanEditor({
                       </div>
                     </div>
 
-                    {/* Supprimer */}
+                    {/* Supprimer — plus subtil */}
                     <div className="pt-2 border-t mt-auto">
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
-                        className="w-full"
+                        className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 transition-all"
                         onClick={() =>
                           setDeleteConfirmId(
                             selectedTable.id || selectedTable._tempId || null

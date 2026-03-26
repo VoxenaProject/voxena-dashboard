@@ -131,32 +131,32 @@ export function FloorTableElement({ table, zone, isSelected, onSelect }: FloorTa
       }}
       className="group"
     >
-      {/* Chaises */}
+      {/* Chaises — légèrement plus grandes avec ombre */}
       {chairs.map((chair, i) => (
         <div
           key={i}
           className={cn(
-            "absolute w-2 h-2 rounded-full transition-colors",
+            "absolute w-2.5 h-2.5 rounded-full transition-all duration-150",
             isSelected
-              ? "bg-violet/40 border border-violet/60"
-              : "bg-blue/30 border border-blue/50"
+              ? "bg-violet/50 border border-violet/70 shadow-[0_1px_3px_rgba(66,55,196,0.2)]"
+              : "bg-blue/30 border border-blue/50 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
           )}
-          style={{ left: chair.x, top: chair.y }}
+          style={{ left: chair.x - 0.25, top: chair.y - 0.25 }}
         />
       ))}
 
-      {/* La table elle-même */}
+      {/* La table elle-même — premium avec shadow + hover lift */}
       <div
         className={cn(
-          "w-full h-full flex flex-col items-center justify-center gap-0.5 border-2 transition-all relative",
+          "w-full h-full flex flex-col items-center justify-center gap-0.5 border-2 transition-all duration-150 relative shadow-md",
           // Formes
           table.shape === "round" && "rounded-full",
           table.shape === "rectangle" && "rounded-lg",
           table.shape === "square" && "rounded-lg",
-          // Couleurs
+          // Couleurs + effects
           isSelected
-            ? "bg-violet/15 border-violet ring-2 ring-violet/30 shadow-lg"
-            : "border-blue/30 hover:border-blue/40",
+            ? "bg-violet/15 border-violet ring-2 ring-violet/40 floor-table-selected-glow"
+            : "border-blue/30 hover:border-blue/40 floor-table-hover",
           // Drag
           isDragging && "opacity-80 shadow-xl scale-105"
         )}
@@ -166,16 +166,17 @@ export function FloorTableElement({ table, zone, isSelected, onSelect }: FloorTa
             : undefined
         }
       >
-        {/* Indicateur de zone (point coloré en haut à droite) */}
+        {/* Indicateur de zone (point colore en haut a droite) */}
         <span
           className={cn(
-            "absolute w-2.5 h-2.5 rounded-full border border-white/80",
+            "absolute w-2.5 h-2.5 rounded-full border border-white/80 shadow-sm",
             zoneConfig.dotColor,
             table.shape === "round" ? "top-1 right-1" : "top-1 right-1"
           )}
         />
 
-        <span className="text-[10px] font-medium text-foreground/80 leading-none truncate px-1 max-w-full">
+        {/* Nom de table avec backdrop blur pour lisibilite */}
+        <span className="text-[10px] font-medium text-foreground/80 leading-none truncate px-1.5 max-w-full table-name-backdrop rounded-sm">
           {table.name}
         </span>
         <div className="flex items-center gap-0.5">
