@@ -4,6 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
+import { CopyIdButton } from "@/components/admin/copy-id-button";
 import { Badge } from "@/components/ui/badge";
 import { RestaurantAdminActions } from "@/components/admin/restaurant-admin-actions";
 import { RestaurantTabs } from "@/components/admin/restaurant-tabs";
@@ -104,6 +105,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground">
             Créé le {format(new Date(resto.created_at), "d MMMM yyyy", { locale: fr })}
           </p>
+          <CopyIdButton id={resto.id} />
         </div>
         <RestaurantAdminActions restaurant={resto} />
       </div>
