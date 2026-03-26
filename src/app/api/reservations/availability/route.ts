@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const restaurantId = searchParams.get("restaurant_id");
   const date = searchParams.get("date");
-  const covers = parseInt(searchParams.get("covers") || "2", 10);
+  // Convertir covers en nombre (gère les cas où l'agent envoie du texte)
+  const rawCovers = searchParams.get("covers") || "2";
+  let covers = parseInt(rawCovers, 10);
+  if (isNaN(covers) || covers < 1) covers = 2; // Défaut à 2 si invalide
   const zone = searchParams.get("zone"); // Filtre optionnel par zone
 
   if (!restaurantId || !date) {
