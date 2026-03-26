@@ -128,36 +128,36 @@ export function ReservationList({
   const [waitlistMode, setWaitlistMode] = useState(false);
 
   // Notification son + toast + banner
-  const prevCountRef = useRef(initialReservations.length);
-  const prevInitialRef = useRef(initialReservations);
+  const knownResaIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r.id)));
   const [showBanner, setShowBanner] = useState<Reservation | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevDateRef = useRef(selectedDate);
 
   useEffect(() => {
     audioRef.current = new Audio("/sounds/new-order.mp3");
   }, []);
 
-  // Reset le compteur quand les données serveur changent (changement de date)
+  // Quand la date change, reset les IDs connus sans déclencher de notif
   useEffect(() => {
-    if (prevInitialRef.current !== initialReservations) {
-      prevCountRef.current = reservations.length;
-      prevInitialRef.current = initialReservations;
+    if (prevDateRef.current !== selectedDate) {
+      knownResaIdsRef.current = new Set(reservations.map(r => r.id));
+      prevDateRef.current = selectedDate;
     }
-  }, [initialReservations, reservations.length]);
+  }, [selectedDate, reservations]);
 
-  // Notification UNIQUEMENT quand une nouvelle résa arrive via realtime/polling
+  // Notification UNIQUEMENT pour les résas dont l'ID n'était pas connu
   useEffect(() => {
-    if (reservations.length > prevCountRef.current && prevInitialRef.current === initialReservations) {
-      const newResa = reservations[0];
+    const trulyNew = reservations.filter(r => !knownResaIdsRef.current.has(r.id));
+
+    if (trulyNew.length > 0) {
+      const newResa = trulyNew[0];
 
       // Son de notification
       audioRef.current?.play().catch(() => {});
       setTimeout(() => audioRef.current?.play().catch(() => {}), 1500);
 
-      // Formater l'heure sans les secondes (19:30:00 → 19:30)
       const timeShort = newResa.time_slot?.slice(0, 5) || newResa.time_slot;
 
-      // Toast
       toast.success(
         `Nouvelle réservation de ${newResa.customer_name} !`,
         {
@@ -166,15 +166,13 @@ export function ReservationList({
         }
       );
 
-      // Banner (3 secondes)
       setShowBanner(newResa);
       setTimeout(() => setShowBanner(null), 3000);
 
-      // Notification navigateur
       if (typeof window !== "undefined" && "Notification" in window) {
         if (Notification.permission === "granted") {
           new Notification(`Nouvelle réservation — ${newResa.customer_name}`, {
-            body: `${newResa.covers} couverts — ${newResa.time_slot}`,
+            body: `${newResa.covers} couverts — ${timeShort}`,
             icon: "/favicon.ico",
           });
         } else if (Notification.permission !== "denied") {
@@ -182,8 +180,10 @@ export function ReservationList({
         }
       }
     }
-    prevCountRef.current = reservations.length;
-  }, [reservations.length, reservations]);
+
+    // Mettre à jour les IDs connus
+    knownResaIdsRef.current = new Set(reservations.map(r => r.id));
+  }, [reservations]);
 
   // Filtrer par statut + recherche texte
   const filtered = useMemo(() => {
