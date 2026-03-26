@@ -1,12 +1,46 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Reservation, ReservationStatus } from "@/lib/supabase/types";
 
 /**
+ * Déclenche la notification pour une nouvelle réservation.
+ * Appelé UNIQUEMENT depuis le realtime INSERT ou le polling.
+ */
+function notifyNewReservation(resa: Reservation) {
+  const timeShort = resa.time_slot?.slice(0, 5) || resa.time_slot;
+
+  // Son
+  try {
+    const audio = new Audio("/sounds/new-order.mp3");
+    audio.play().catch(() => {});
+    setTimeout(() => audio.play().catch(() => {}), 1500);
+  } catch {}
+
+  // Toast
+  toast.success(`Nouvelle réservation de ${resa.customer_name} !`, {
+    description: `${resa.covers} couvert${resa.covers > 1 ? "s" : ""} — ${resa.date} à ${timeShort}`,
+    duration: 8000,
+  });
+
+  // Notification navigateur
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "granted") {
+      new Notification(`Nouvelle réservation — ${resa.customer_name}`, {
+        body: `${resa.covers} couverts — ${resa.date} à ${timeShort}`,
+        icon: "/favicon.ico",
+      });
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }
+}
+
+/**
  * Hook realtime pour les réservations.
- * Même pattern que use-realtime-orders : Supabase Realtime + polling fallback.
+ * Notifications déclenchées UNIQUEMENT par le realtime INSERT ou le polling.
  */
 export function useRealtimeReservations(
   initialReservations: Reservation[],
@@ -15,9 +49,11 @@ export function useRealtimeReservations(
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
   const supabase = createClient();
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map((r) => r.id)));
-  // Track les nouveaux IDs pour les notifications
   const [newReservationIds, setNewReservationIds] = useState<Set<string>>(new Set());
+  // Banner state exposé pour le composant parent
+  const [showBanner, setShowBanner] = useState<Reservation | null>(null);
 
+  // Quand les données serveur changent (changement de date), reset sans notifier
   useEffect(() => {
     setReservations(initialReservations);
     knownIdsRef.current = new Set(initialReservations.map((r) => r.id));
@@ -44,7 +80,10 @@ export function useRealtimeReservations(
           if (!knownIdsRef.current.has(newResa.id)) {
             knownIdsRef.current.add(newResa.id);
             setReservations((prev) => [newResa, ...prev]);
-            // Marquer comme nouvelle pour notification
+            // Notification — c'est une VRAIE nouvelle résa (realtime INSERT)
+            notifyNewReservation(newResa);
+            setShowBanner(newResa);
+            setTimeout(() => setShowBanner(null), 3000);
             setNewReservationIds((prev) => new Set(prev).add(newResa.id));
             setTimeout(() => {
               setNewReservationIds((prev) => {
@@ -105,6 +144,10 @@ export function useRealtimeReservations(
         if (newResas.length > 0) {
           newResas.forEach((r) => knownIdsRef.current.add(r.id));
           setReservations((prev) => [...newResas, ...prev]);
+          // Notification pour la première nouvelle résa (polling)
+          notifyNewReservation(newResas[0]);
+          setShowBanner(newResas[0]);
+          setTimeout(() => setShowBanner(null), 3000);
         }
         // Mettre à jour les statuts des réservations existantes
         setReservations((prev) =>
@@ -152,5 +195,5 @@ export function useRealtimeReservations(
     [reservations]
   );
 
-  return { reservations, newReservationIds, updateReservationStatus, setReservations };
+  return { reservations, newReservationIds, updateReservationStatus, setReservations, showBanner };
 }

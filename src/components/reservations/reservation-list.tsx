@@ -118,7 +118,7 @@ export function ReservationList({
   tables,
   selectedDate,
 }: ReservationListProps) {
-  const { reservations, newReservationIds, updateReservationStatus, setReservations } =
+  const { reservations, newReservationIds, updateReservationStatus, setReservations, showBanner } =
     useRealtimeReservations(initialReservations, restaurantId);
 
   const [filter, setFilter] = useState("all");
@@ -127,63 +127,8 @@ export function ReservationList({
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [waitlistMode, setWaitlistMode] = useState(false);
 
-  // Notification son + toast + banner
-  const knownResaIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r.id)));
-  const [showBanner, setShowBanner] = useState<Reservation | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const prevDateRef = useRef(selectedDate);
-
-  useEffect(() => {
-    audioRef.current = new Audio("/sounds/new-order.mp3");
-  }, []);
-
-  // Quand la date change, reset les IDs connus sans déclencher de notif
-  useEffect(() => {
-    if (prevDateRef.current !== selectedDate) {
-      knownResaIdsRef.current = new Set(reservations.map(r => r.id));
-      prevDateRef.current = selectedDate;
-    }
-  }, [selectedDate, reservations]);
-
-  // Notification UNIQUEMENT pour les résas dont l'ID n'était pas connu
-  useEffect(() => {
-    const trulyNew = reservations.filter(r => !knownResaIdsRef.current.has(r.id));
-
-    if (trulyNew.length > 0) {
-      const newResa = trulyNew[0];
-
-      // Son de notification
-      audioRef.current?.play().catch(() => {});
-      setTimeout(() => audioRef.current?.play().catch(() => {}), 1500);
-
-      const timeShort = newResa.time_slot?.slice(0, 5) || newResa.time_slot;
-
-      toast.success(
-        `Nouvelle réservation de ${newResa.customer_name} !`,
-        {
-          description: `${newResa.covers} couvert${newResa.covers > 1 ? "s" : ""} — ${newResa.date} à ${timeShort}`,
-          duration: 8000,
-        }
-      );
-
-      setShowBanner(newResa);
-      setTimeout(() => setShowBanner(null), 3000);
-
-      if (typeof window !== "undefined" && "Notification" in window) {
-        if (Notification.permission === "granted") {
-          new Notification(`Nouvelle réservation — ${newResa.customer_name}`, {
-            body: `${newResa.covers} couverts — ${timeShort}`,
-            icon: "/favicon.ico",
-          });
-        } else if (Notification.permission !== "denied") {
-          Notification.requestPermission();
-        }
-      }
-    }
-
-    // Mettre à jour les IDs connus
-    knownResaIdsRef.current = new Set(reservations.map(r => r.id));
-  }, [reservations]);
+  // Le hook realtime gère toutes les notifications (son, toast, banner, navigateur)
+  // Rien à faire ici — pas de spam au changement de date
 
   // Filtrer par statut + recherche texte
   const filtered = useMemo(() => {
