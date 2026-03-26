@@ -481,7 +481,14 @@ export function ReservationDialog({
                 </Label>
                 <Select value={tableId} onValueChange={(v) => setTableId(v ?? "")}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Auto-attribution" />
+                    <SelectValue placeholder="Auto-attribution">
+                      {tableId
+                        ? (() => {
+                            const found = displayTables.find((t) => t.id === tableId);
+                            return found ? `${found.name} (${found.capacity} places)` : "Auto-attribution";
+                          })()
+                        : "Auto-attribution"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Auto-attribution</SelectItem>
