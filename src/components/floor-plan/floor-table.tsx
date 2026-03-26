@@ -3,10 +3,12 @@
 import { useDraggable } from "@dnd-kit/core";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getZoneConfig } from "@/lib/floor-plan/zones";
 import type { FloorTable as FloorTableType } from "@/lib/supabase/types";
 
 interface FloorTableProps {
   table: FloorTableType & { _tempId?: string };
+  zone?: string;
   isSelected: boolean;
   onSelect: () => void;
 }
@@ -83,8 +85,18 @@ function getChairPositions(
   return chairs;
 }
 
-export function FloorTableElement({ table, isSelected, onSelect }: FloorTableProps) {
+// Couleurs de fond subtiles selon la zone (en inline pour le tint léger)
+const zoneTintMap: Record<string, string> = {
+  salle: "rgba(59, 130, 246, 0.06)",
+  terrasse: "rgba(16, 185, 129, 0.06)",
+  bar: "rgba(245, 158, 11, 0.06)",
+  salle_privee: "rgba(139, 92, 246, 0.06)",
+  vip: "rgba(234, 179, 8, 0.06)",
+};
+
+export function FloorTableElement({ table, zone, isSelected, onSelect }: FloorTableProps) {
   const dragId = table.id || table._tempId || "unknown";
+  const zoneConfig = getZoneConfig(zone || table.zone || "salle");
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -136,7 +148,7 @@ export function FloorTableElement({ table, isSelected, onSelect }: FloorTablePro
       {/* La table elle-même */}
       <div
         className={cn(
-          "w-full h-full flex flex-col items-center justify-center gap-0.5 border-2 transition-all",
+          "w-full h-full flex flex-col items-center justify-center gap-0.5 border-2 transition-all relative",
           // Formes
           table.shape === "round" && "rounded-full",
           table.shape === "rectangle" && "rounded-lg",
@@ -144,11 +156,25 @@ export function FloorTableElement({ table, isSelected, onSelect }: FloorTablePro
           // Couleurs
           isSelected
             ? "bg-violet/15 border-violet ring-2 ring-violet/30 shadow-lg"
-            : "bg-blue/10 border-blue/30 hover:bg-blue/15 hover:border-blue/40",
+            : "border-blue/30 hover:border-blue/40",
           // Drag
           isDragging && "opacity-80 shadow-xl scale-105"
         )}
+        style={
+          !isSelected
+            ? { backgroundColor: zoneTintMap[zone || table.zone || "salle"] || zoneTintMap.salle }
+            : undefined
+        }
       >
+        {/* Indicateur de zone (point coloré en haut à droite) */}
+        <span
+          className={cn(
+            "absolute w-2.5 h-2.5 rounded-full border border-white/80",
+            zoneConfig.dotColor,
+            table.shape === "round" ? "top-1 right-1" : "top-1 right-1"
+          )}
+        />
+
         <span className="text-[10px] font-medium text-foreground/80 leading-none truncate px-1 max-w-full">
           {table.name}
         </span>

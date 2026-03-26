@@ -6,7 +6,8 @@ export type OrderType = "emporter" | "livraison";
 export type AgentStatus = "active" | "paused" | "error";
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "cancelled" | "paused";
 export type SubscriptionPlan = "orders" | "tables" | "pro";
-export type ReservationStatus = "en_attente" | "confirmee" | "assise" | "terminee" | "annulee" | "no_show";
+export type ReservationStatus = "en_attente" | "confirmee" | "assise" | "terminee" | "annulee" | "no_show" | "liste_attente";
+export type FloorZone = "salle" | "terrasse" | "bar" | "salle_privee" | "vip";
 
 export interface OrderItem {
   name: string;
@@ -148,6 +149,7 @@ export interface FloorTable {
   y: number;
   width: number;
   height: number;
+  zone: string;
   combinable: boolean;
   is_active: boolean;
   sort_order: number;
@@ -167,6 +169,8 @@ export interface Reservation {
   customer_email: string | null;
   status: ReservationStatus;
   notes: string | null;
+  waitlist_position: number | null;
+  estimated_wait_minutes: number | null;
   source: "phone" | "web" | "manual";
   conversation_id: string | null;
   created_at: string;

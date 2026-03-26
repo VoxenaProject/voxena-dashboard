@@ -49,6 +49,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { FloorTableElement } from "@/components/floor-plan/floor-table";
+import { ZONES } from "@/lib/floor-plan/zones";
 import type { FloorTable } from "@/lib/supabase/types";
 
 // Type local avec _tempId pour les tables pas encore persistées
@@ -86,6 +87,7 @@ export function FloorPlanEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [activeZone, setActiveZone] = useState<string>("all");
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Table sélectionnée
@@ -137,6 +139,9 @@ export function FloorPlanEditor({
 
       const tempId = generateTempId();
 
+      // Zone par défaut = zone active (ou "salle" si on affiche toutes)
+      const defaultZone = activeZone !== "all" ? activeZone : "salle";
+
       const newTable: LocalTable = {
         id: "",
         _tempId: tempId,
@@ -149,6 +154,7 @@ export function FloorPlanEditor({
         y: centerY,
         width: defaultWidth,
         height: defaultHeight,
+        zone: defaultZone,
         combinable: true,
         is_active: true,
         sort_order: count,
@@ -159,7 +165,7 @@ export function FloorPlanEditor({
       setSelectedId(tempId);
       setHasChanges(true);
     },
-    [tables.length, restaurantId]
+    [tables.length, restaurantId, activeZone]
   );
 
   // Supprimer une table
@@ -212,6 +218,7 @@ export function FloorPlanEditor({
           y: t.y,
           width: t.width,
           height: t.height,
+          zone: t.zone || "salle",
           combinable: t.combinable,
           is_active: t.is_active,
           sort_order: i,
@@ -345,6 +352,39 @@ export function FloorPlanEditor({
           </Button>
         </div>
 
+        {/* Filtres par zone */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setActiveZone("all")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              activeZone === "all"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+            }`}
+          >
+            Toutes
+            <span className="text-[10px] opacity-70">{tables.length}</span>
+          </button>
+          {ZONES.map((zone) => {
+            const count = tables.filter((t) => (t.zone || "salle") === zone.value).length;
+            return (
+              <button
+                key={zone.value}
+                onClick={() => setActiveZone(zone.value)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                  activeZone === zone.value
+                    ? `${zone.color} border-current/20`
+                    : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${zone.dotColor}`} />
+                {zone.label}
+                <span className="text-[10px] opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Zone principale : canvas + panneau latéral */}
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Canvas */}
@@ -368,20 +408,25 @@ export function FloorPlanEditor({
                     backgroundSize: `${GRID_SIZE * 2}px ${GRID_SIZE * 2}px`,
                   }}
                 >
-                  {/* Tables */}
-                  {tables.map((table) => (
-                    <FloorTableElement
-                      key={getTableKey(table)}
-                      table={table}
-                      isSelected={
-                        selectedId === table.id ||
-                        selectedId === table._tempId
-                      }
-                      onSelect={() =>
-                        setSelectedId(table.id || table._tempId || null)
-                      }
-                    />
-                  ))}
+                  {/* Tables (filtrées par zone active) */}
+                  {tables
+                    .filter((t) =>
+                      activeZone === "all" ? true : (t.zone || "salle") === activeZone
+                    )
+                    .map((table) => (
+                      <FloorTableElement
+                        key={getTableKey(table)}
+                        table={table}
+                        zone={table.zone || "salle"}
+                        isSelected={
+                          selectedId === table.id ||
+                          selectedId === table._tempId
+                        }
+                        onSelect={() =>
+                          setSelectedId(table.id || table._tempId || null)
+                        }
+                      />
+                    ))}
 
                   {/* Indication si aucune table */}
                   {tables.length === 0 && (
@@ -497,6 +542,34 @@ export function FloorPlanEditor({
                             <Square className="w-3.5 h-3.5 text-muted-foreground" />
                             Carrée
                           </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Zone */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Zone</Label>
+                      <Select
+                        value={selectedTable.zone || "salle"}
+                        onValueChange={(val) =>
+                          updateTable(
+                            selectedTable.id || selectedTable._tempId || "",
+                            { zone: val ?? "salle" }
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-full h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ZONES.map((z) => (
+                            <SelectItem key={z.value} value={z.value}>
+                              <span className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${z.dotColor}`} />
+                                {z.label}
+                              </span>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

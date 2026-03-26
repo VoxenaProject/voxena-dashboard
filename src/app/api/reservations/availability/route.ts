@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const restaurantId = searchParams.get("restaurant_id");
   const date = searchParams.get("date");
   const covers = parseInt(searchParams.get("covers") || "2", 10);
+  const zone = searchParams.get("zone"); // Filtre optionnel par zone
 
   if (!restaurantId || !date) {
     return NextResponse.json(
@@ -43,14 +44,20 @@ export async function GET(request: NextRequest) {
     openingSlots = dayHours;
   }
 
-  // Récupérer les tables actives avec capacité >= covers
-  const { data: tables } = await supabase
+  // Récupérer les tables actives avec capacité >= covers (+ filtre zone optionnel)
+  let tablesQuery = supabase
     .from("floor_tables")
-    .select("id, name, capacity")
+    .select("id, name, capacity, zone")
     .eq("restaurant_id", restaurantId)
     .eq("is_active", true)
     .gte("capacity", covers)
     .order("capacity", { ascending: true });
+
+  if (zone) {
+    tablesQuery = tablesQuery.eq("zone", zone);
+  }
+
+  const { data: tables } = await tablesQuery;
 
   if (!tables || tables.length === 0) {
     return NextResponse.json({ slots: [] });
@@ -70,7 +77,7 @@ export async function GET(request: NextRequest) {
   const DEFAULT_DURATION = 90;
 
   // Générer tous les créneaux de 30 minutes dans les plages d'ouverture
-  const slots: { time: string; tables: { id: string; name: string; capacity: number }[] }[] = [];
+  const slots: { time: string; tables: { id: string; name: string; capacity: number; zone: string }[] }[] = [];
 
   for (const period of openingSlots) {
     const [openH, openM] = period.open.split(":").map(Number);
@@ -106,6 +113,7 @@ export async function GET(request: NextRequest) {
             id: t.id,
             name: t.name,
             capacity: t.capacity,
+            zone: t.zone || "salle",
           })),
         });
       }

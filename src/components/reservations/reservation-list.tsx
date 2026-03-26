@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,6 +18,7 @@ import {
   UserCheck,
   UserX,
   Armchair,
+  Hourglass,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useRealtimeReservations } from "@/hooks/use-realtime-reservations";
 import { ReservationDialog } from "./reservation-dialog";
+import { WaitlistPanel } from "./waitlist-panel";
+import { getZoneConfig } from "@/lib/floor-plan/zones";
 import type { Reservation, ReservationStatus, FloorTable } from "@/lib/supabase/types";
 
 // ── Configuration ──
@@ -35,6 +38,7 @@ const statusFilters: { label: string; value: string }[] = [
   { label: "Confirmées", value: "confirmee" },
   { label: "Assises", value: "assise" },
   { label: "Terminées", value: "terminee" },
+  { label: "Liste d'attente", value: "liste_attente" },
 ];
 
 const statusConfig: Record<
@@ -77,6 +81,12 @@ const statusConfig: Record<
     bg: "bg-red-200",
     dot: "bg-red-700",
   },
+  liste_attente: {
+    label: "Liste d'attente",
+    color: "text-amber-800",
+    bg: "bg-amber-50",
+    dot: "bg-amber-600",
+  },
 };
 
 // Détection d'occasion dans les notes
@@ -108,13 +118,14 @@ export function ReservationList({
   tables,
   selectedDate,
 }: ReservationListProps) {
-  const { reservations, newReservationIds, updateReservationStatus } =
+  const { reservations, newReservationIds, updateReservationStatus, setReservations } =
     useRealtimeReservations(initialReservations, restaurantId);
 
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
+  const [waitlistMode, setWaitlistMode] = useState(false);
 
   // Notification son + toast + banner
   const prevCountRef = useRef(initialReservations.length);
@@ -190,6 +201,67 @@ export function ReservationList({
   const confirmedCount = reservations.filter((r) => r.status === "confirmee").length;
   const pendingCount = reservations.filter((r) => r.status === "en_attente").length;
   const noShowCount = reservations.filter((r) => r.status === "no_show").length;
+  const waitlistCount = reservations.filter((r) => r.status === "liste_attente").length;
+  const waitlistItems = useMemo(
+    () => reservations.filter((r) => r.status === "liste_attente"),
+    [reservations]
+  );
+
+  // Asseoir un client de la liste d'attente
+  const handleSeatFromWaitlist = useCallback(
+    async (reservationId: string, tableId: string) => {
+      try {
+        const res = await fetch("/api/reservations", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: reservationId,
+            status: "assise",
+            table_id: tableId,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Erreur");
+        }
+
+        // Mise à jour optimiste locale
+        setReservations((prev) =>
+          prev.map((r) =>
+            r.id === reservationId
+              ? { ...r, status: "assise" as ReservationStatus, table_id: tableId, waitlist_position: null, estimated_wait_minutes: null }
+              : r
+          )
+        );
+
+        toast.success("Client installé avec succès !");
+      } catch {
+        toast.error("Erreur lors de l'installation du client");
+      }
+    },
+    [setReservations]
+  );
+
+  // Annuler une entrée de la liste d'attente
+  const handleCancelWaitlist = useCallback(
+    async (reservationId: string) => {
+      try {
+        await updateReservationStatus(reservationId, "annulee");
+        toast.success("Entrée retirée de la liste d'attente");
+      } catch {
+        toast.error("Erreur lors de l'annulation");
+      }
+    },
+    [updateReservationStatus]
+  );
+
+  // Ouvrir la dialog en mode "liste d'attente"
+  function handleNewWaitlist() {
+    setWaitlistMode(true);
+    setEditingReservation(null);
+    setDialogOpen(true);
+  }
 
   // Actions rapides sur une réservation
   async function handleStatusChange(resaId: string, status: ReservationStatus) {
@@ -214,6 +286,7 @@ export function ReservationList({
   }
 
   function handleNewReservation() {
+    setWaitlistMode(false);
     setEditingReservation(null);
     setDialogOpen(true);
   }
@@ -270,7 +343,7 @@ export function ReservationList({
       </AnimatePresence>
 
       {/* Stats chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
         <StatsChip
           icon={CalendarDays}
           label="Résas aujourd'hui"
@@ -303,6 +376,15 @@ export function ReservationList({
           color="text-amber-600"
           bgColor="bg-amber-500/6"
           active={pendingCount > 0}
+        />
+        <StatsChip
+          icon={Hourglass}
+          label="Liste d'attente"
+          count={waitlistCount}
+          color="text-amber-700"
+          bgColor="bg-amber-100/50"
+          active={waitlistCount > 0}
+          dotColor="bg-amber-600"
         />
         <StatsChip
           icon={AlertCircle}
@@ -351,62 +433,86 @@ export function ReservationList({
           </TabsList>
         </Tabs>
 
-        <Button
-          size="sm"
-          className="gap-1.5 bg-violet hover:bg-violet/90 text-white"
-          onClick={handleNewReservation}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nouvelle réservation
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="gap-1.5 bg-violet hover:bg-violet/90 text-white"
+            onClick={handleNewReservation}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nouvelle réservation
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+            onClick={handleNewWaitlist}
+          >
+            <Hourglass className="w-3.5 h-3.5" />
+            Liste d&apos;attente
+          </Button>
+        </div>
       </div>
 
-      {/* Liste des réservations */}
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <EmptyState
-                icon={CalendarDays}
-                title={search ? "Aucun résultat" : "Aucune réservation"}
-                description={
-                  search
-                    ? `Aucune réservation ne correspond à "${search}"`
-                    : "Les nouvelles réservations apparaîtront ici en temps réel."
-                }
-                actionLabel="Nouvelle réservation"
-                onAction={handleNewReservation}
-              />
-            </motion.div>
-          ) : (
-            filtered.map((resa, i) => (
-              <ReservationCard
-                key={resa.id}
-                reservation={resa}
-                tables={tables}
-                index={i}
-                isNew={newReservationIds.has(resa.id)}
-                onStatusChange={handleStatusChange}
-                onEdit={handleEdit}
-              />
-            ))
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Contenu : liste classique ou panel waitlist */}
+      {filter === "liste_attente" ? (
+        <WaitlistPanel
+          waitlistItems={waitlistItems}
+          tables={tables}
+          onSeat={handleSeatFromWaitlist}
+          onCancel={handleCancelWaitlist}
+        />
+      ) : (
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {filtered.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <EmptyState
+                  icon={CalendarDays}
+                  title={search ? "Aucun résultat" : "Aucune réservation"}
+                  description={
+                    search
+                      ? `Aucune réservation ne correspond à "${search}"`
+                      : "Les nouvelles réservations apparaîtront ici en temps réel."
+                  }
+                  actionLabel="Nouvelle réservation"
+                  onAction={handleNewReservation}
+                />
+              </motion.div>
+            ) : (
+              filtered.map((resa, i) => (
+                <ReservationCard
+                  key={resa.id}
+                  reservation={resa}
+                  tables={tables}
+                  index={i}
+                  isNew={newReservationIds.has(resa.id)}
+                  onStatusChange={handleStatusChange}
+                  onEdit={handleEdit}
+                />
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Dialog création/édition */}
       <ReservationDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setWaitlistMode(false);
+        }}
         restaurantId={restaurantId}
         tables={tables}
         reservation={editingReservation}
         defaultDate={selectedDate}
+        forceWaitlist={waitlistMode}
       />
     </div>
   );
@@ -502,6 +608,15 @@ function ReservationCard({
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {table ? table.name : "Pas de table"}
+              {table && (() => {
+                const zoneConf = getZoneConfig(table.zone || "salle");
+                return (
+                  <span className={`inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${zoneConf.color}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${zoneConf.dotColor}`} />
+                    {zoneConf.label}
+                  </span>
+                );
+              })()}
             </span>
           </div>
 

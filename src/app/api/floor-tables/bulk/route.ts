@@ -68,6 +68,7 @@ export async function PUT(request: NextRequest) {
       y: t.y ?? 0,
       width: t.width ?? 120,
       height: t.height ?? 70,
+      zone: t.zone ?? "salle",
       combinable: t.combinable ?? true,
       is_active: t.is_active ?? true,
       sort_order: t.sort_order ?? i,

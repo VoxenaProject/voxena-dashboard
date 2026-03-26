@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
-import { ReservationList } from "@/components/reservations/reservation-list";
+import { ReservationViews } from "@/components/reservations/reservation-views";
 import { ReservationDatePicker } from "@/components/reservations/reservation-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
@@ -54,7 +54,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
         </div>
         <ReservationDatePicker currentDate={selectedDate} />
       </div>
-      <ReservationList
+      <ReservationViews
         initialReservations={(reservations as Reservation[]) || []}
         restaurantId={restaurantId}
         tables={(tables as FloorTable[]) || []}

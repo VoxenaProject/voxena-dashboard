@@ -94,6 +94,12 @@ const statusConfig: Record<
     bg: "bg-red-200",
     dot: "bg-red-700",
   },
+  liste_attente: {
+    label: "Liste d'attente",
+    color: "text-amber-800",
+    bg: "bg-amber-50",
+    dot: "bg-amber-400",
+  },
 };
 
 // Couleurs par restaurant — rotation déterministe

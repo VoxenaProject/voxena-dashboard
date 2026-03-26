@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       occasion,
       conversation_id,
       duration = 90,
+      status: requestedStatus,
     } = body;
 
     if (!restaurant_id || !date || !time_slot || !covers || !customer_name) {
@@ -170,12 +171,66 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Gestion liste d'attente ──
+    const isWaitlist = requestedStatus === "liste_attente";
+    let waitlistPosition: number | null = null;
+    let estimatedWaitMinutes: number | null = null;
+
+    if (isWaitlist) {
+      // Calculer la position dans la file d'attente
+      const { data: maxPosData } = await supabase
+        .from("reservations")
+        .select("waitlist_position")
+        .eq("restaurant_id", restaurant_id)
+        .eq("date", date)
+        .eq("status", "liste_attente")
+        .order("waitlist_position", { ascending: false })
+        .limit(1);
+
+      const currentMax = maxPosData?.[0]?.waitlist_position ?? 0;
+      waitlistPosition = currentMax + 1;
+
+      // Estimer le temps d'attente
+      // Chercher les réservations "assise" sur des tables >= covers
+      const { data: seatedResas } = await supabase
+        .from("reservations")
+        .select("created_at, duration, time_slot, floor_tables!inner(capacity)")
+        .eq("restaurant_id", restaurant_id)
+        .eq("date", date)
+        .eq("status", "assise")
+        .gte("floor_tables.capacity", covers);
+
+      if (seatedResas && seatedResas.length > 0) {
+        const now = new Date();
+        let minRemainingMinutes = Infinity;
+
+        for (const resa of seatedResas) {
+          // Estimer le temps restant : (time_slot + duration) - maintenant
+          const [slotH, slotM] = resa.time_slot.split(":").map(Number);
+          const slotDate = new Date(date);
+          slotDate.setHours(slotH, slotM, 0, 0);
+          const endTime = new Date(slotDate.getTime() + (resa.duration || 90) * 60000);
+          const remainingMs = endTime.getTime() - now.getTime();
+          const remainingMin = Math.max(0, Math.ceil(remainingMs / 60000));
+
+          if (remainingMin < minRemainingMinutes) {
+            minRemainingMinutes = remainingMin;
+          }
+        }
+
+        estimatedWaitMinutes = minRemainingMinutes === Infinity ? 30 : minRemainingMinutes;
+      } else {
+        // Pas de réservation assise → estimation par défaut 30 min
+        estimatedWaitMinutes = 30;
+      }
+    }
+
     // Créer la réservation
     const { data: reservation, error } = await supabase
       .from("reservations")
       .insert({
         restaurant_id,
-        table_id: resolvedTableId,
+        table_id: isWaitlist ? null : resolvedTableId,
         date,
         time_slot,
         duration,
@@ -183,10 +238,12 @@ export async function POST(request: NextRequest) {
         customer_name,
         customer_phone: customer_phone || null,
         customer_email: customer_email || null,
-        status: "en_attente",
+        status: isWaitlist ? "liste_attente" : "en_attente",
         notes: enrichedNotes || null,
         source: isAgent ? "phone" : source,
         conversation_id: conversation_id || null,
+        waitlist_position: waitlistPosition,
+        estimated_wait_minutes: estimatedWaitMinutes,
       })
       .select("*, floor_tables(name, capacity)")
       .single();
@@ -280,7 +337,7 @@ export async function PATCH(request: NextRequest) {
     // Vérifier que la réservation existe et que l'user y a accès
     const { data: existing } = await supabase
       .from("reservations")
-      .select("restaurant_id")
+      .select("restaurant_id, status, waitlist_position, date")
       .eq("id", id)
       .single();
 
@@ -347,6 +404,24 @@ export async function PATCH(request: NextRequest) {
     }
     safeUpdates.updated_at = new Date().toISOString();
 
+    // ── Transition liste_attente → assise : nettoyer les champs waitlist ──
+    const isWaitlistToSeated =
+      existing.status === "liste_attente" && updates.status === "assise";
+
+    if (isWaitlistToSeated) {
+      safeUpdates.waitlist_position = null;
+      safeUpdates.estimated_wait_minutes = null;
+    }
+
+    // Transition liste_attente → annulee : nettoyer aussi
+    const isWaitlistCancelled =
+      existing.status === "liste_attente" && updates.status === "annulee";
+
+    if (isWaitlistCancelled) {
+      safeUpdates.waitlist_position = null;
+      safeUpdates.estimated_wait_minutes = null;
+    }
+
     const { data: reservation, error } = await supabase
       .from("reservations")
       .update(safeUpdates)
@@ -357,6 +432,34 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       console.error("[reservations/PATCH] Erreur:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // ── Recalculer les positions waitlist restantes si on retire quelqu'un ──
+    if (
+      (isWaitlistToSeated || isWaitlistCancelled) &&
+      existing.waitlist_position !== null
+    ) {
+      // Décaler les positions des entrées suivantes
+      const { data: remainingWaitlist } = await supabase
+        .from("reservations")
+        .select("id, waitlist_position")
+        .eq("restaurant_id", existing.restaurant_id)
+        .eq("date", existing.date)
+        .eq("status", "liste_attente")
+        .gt("waitlist_position", existing.waitlist_position)
+        .order("waitlist_position", { ascending: true });
+
+      if (remainingWaitlist && remainingWaitlist.length > 0) {
+        for (const item of remainingWaitlist) {
+          await supabase
+            .from("reservations")
+            .update({
+              waitlist_position: (item.waitlist_position ?? 1) - 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.id);
+        }
+      }
     }
 
     return NextResponse.json({ success: true, reservation });
