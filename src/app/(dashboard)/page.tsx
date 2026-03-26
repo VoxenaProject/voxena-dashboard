@@ -1,9 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { getDashboardStats } from "@/lib/dashboard/stats";
-import { getReservationStats } from "@/lib/dashboard/reservation-stats";
+import { getReservationStats, getUpcomingReservationSummary } from "@/lib/dashboard/reservation-stats";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
-import type { UpcomingReservation } from "@/components/dashboard/dashboard-content";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { SubscriptionPlan } from "@/lib/supabase/types";
 
@@ -29,20 +28,10 @@ export default async function DashboardHome() {
   const showOrders = plan === "orders" || plan === "pro";
   const showReservations = plan === "tables" || plan === "pro";
 
-  const [orderStats, reservationStats, upcomingResaRes] = await Promise.all([
+  const [orderStats, reservationStats, upcomingSummary] = await Promise.all([
     showOrders ? getDashboardStats(supabase, restaurantId) : Promise.resolve(null),
     showReservations ? getReservationStats(supabase, restaurantId) : Promise.resolve(null),
-    // Récupérer les prochaines réservations du jour (5 max)
-    showReservations
-      ? supabase
-          .from("reservations")
-          .select("id, customer_name, customer_phone, time_slot, covers, status, table_id, notes, floor_tables(name)")
-          .eq("restaurant_id", restaurantId)
-          .eq("date", new Date().toISOString().split("T")[0])
-          .in("status", ["en_attente", "confirmee"])
-          .order("time_slot", { ascending: true })
-          .limit(5)
-      : Promise.resolve({ data: null }),
+    showReservations ? getUpcomingReservationSummary(supabase, restaurantId) : Promise.resolve(null),
   ]);
 
   // Construire les données chart 7 jours (uniquement si plan orders/pro)
@@ -68,7 +57,7 @@ export default async function DashboardHome() {
       telnyxPhone={telnyxPhone}
       plan={plan}
       reservationStats={reservationStats}
-      upcomingReservations={(upcomingResaRes?.data || []) as UpcomingReservation[]}
+      upcomingSummary={upcomingSummary}
     />
   );
 }

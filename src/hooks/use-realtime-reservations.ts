@@ -44,7 +44,8 @@ function notifyNewReservation(resa: Reservation) {
  */
 export function useRealtimeReservations(
   initialReservations: Reservation[],
-  restaurantId?: string | null
+  restaurantId?: string | null,
+  selectedDate?: string
 ) {
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
   const supabase = createClient();
@@ -126,17 +127,16 @@ export function useRealtimeReservations(
       )
       .subscribe();
 
-    // Polling fallback toutes les 10s
+    // Polling fallback toutes les 10s — poll la date affichée, pas "today"
+    const pollDate = selectedDate || new Date().toISOString().split("T")[0];
     const pollInterval = setInterval(async () => {
       if (!restaurantId) return;
 
-      // On poll la date du jour uniquement
-      const today = new Date().toISOString().split("T")[0];
       const { data } = await supabase
         .from("reservations")
         .select("*")
         .eq("restaurant_id", restaurantId)
-        .eq("date", today)
+        .eq("date", pollDate)
         .order("time_slot", { ascending: true });
 
       if (data) {
@@ -163,7 +163,7 @@ export function useRealtimeReservations(
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [supabase, restaurantId]);
+  }, [supabase, restaurantId, selectedDate]);
 
   // Mise à jour optimiste du statut avec rollback
   const updateReservationStatus = useCallback(

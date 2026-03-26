@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
+import { getUpcomingReservationSummary } from "@/lib/dashboard/reservation-stats";
 import { ReservationViews } from "@/components/reservations/reservation-views";
 import { ReservationDatePicker } from "@/components/reservations/reservation-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
@@ -23,21 +24,27 @@ export default async function ReservationsPage({ searchParams }: Props) {
   const selectedDate = date || new Date().toISOString().split("T")[0];
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
-  // Récupérer les réservations du jour sélectionné
-  const { data: reservations } = await supabase
-    .from("reservations")
-    .select("*, floor_tables(name, capacity)")
-    .eq("restaurant_id", restaurantId)
-    .eq("date", selectedDate)
-    .order("time_slot", { ascending: true });
+  // Récupérer les données en parallèle
+  const [reservationsRes, tablesRes, upcomingSummary] = await Promise.all([
+    // Réservations du jour sélectionné
+    supabase
+      .from("reservations")
+      .select("*, floor_tables(name, capacity)")
+      .eq("restaurant_id", restaurantId)
+      .eq("date", selectedDate)
+      .order("time_slot", { ascending: true }),
 
-  // Récupérer toutes les tables du restaurant
-  const { data: tables } = await supabase
-    .from("floor_tables")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+    // Tables du restaurant
+    supabase
+      .from("floor_tables")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }),
+
+    // Résumé 7 prochains jours
+    getUpcomingReservationSummary(supabase, restaurantId),
+  ]);
 
   return (
     <PageWrapper>
@@ -55,10 +62,11 @@ export default async function ReservationsPage({ searchParams }: Props) {
         <ReservationDatePicker currentDate={selectedDate} />
       </div>
       <ReservationViews
-        initialReservations={(reservations as Reservation[]) || []}
+        initialReservations={(reservationsRes.data as Reservation[]) || []}
         restaurantId={restaurantId}
-        tables={(tables as FloorTable[]) || []}
+        tables={(tablesRes.data as FloorTable[]) || []}
         selectedDate={selectedDate}
+        daySummaries={upcomingSummary.daySummaries}
       />
     </PageWrapper>
   );

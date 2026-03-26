@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -28,6 +29,7 @@ import { ReservationDialog } from "./reservation-dialog";
 import { WaitlistPanel } from "./waitlist-panel";
 import { getZoneConfig } from "@/lib/floor-plan/zones";
 import type { Reservation, ReservationStatus, FloorTable } from "@/lib/supabase/types";
+import type { DaySummary } from "@/lib/dashboard/reservation-stats";
 
 // ── Helpers ──
 
@@ -136,6 +138,7 @@ interface ReservationListProps {
   restaurantId: string;
   tables: FloorTable[];
   selectedDate: string;
+  daySummaries?: DaySummary[];
 }
 
 export function ReservationList({
@@ -143,12 +146,15 @@ export function ReservationList({
   restaurantId,
   tables,
   selectedDate,
+  daySummaries,
 }: ReservationListProps) {
   const { reservations, newReservationIds, updateReservationStatus, setReservations, showBanner } =
     realtimeState;
 
+  const router = useRouter();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [confirmingAll, setConfirmingAll] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [waitlistMode, setWaitlistMode] = useState(false);
@@ -279,6 +285,42 @@ export function ReservationList({
     setDialogOpen(true);
   }
 
+  // Confirmer toutes les réservations en attente d'un coup
+  async function handleConfirmAllPending() {
+    if (pendingReservations.length === 0) return;
+    setConfirmingAll(true);
+    try {
+      const results = await Promise.allSettled(
+        pendingReservations.map((r) =>
+          fetch("/api/reservations", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: r.id, status: "confirmee" }),
+          })
+        )
+      );
+
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+
+      // Mise à jour optimiste
+      setReservations((prev) =>
+        prev.map((r) =>
+          r.status === "en_attente"
+            ? { ...r, status: "confirmee" as ReservationStatus }
+            : r
+        )
+      );
+
+      toast.success(
+        `${successCount} réservation${successCount > 1 ? "s" : ""} confirmée${successCount > 1 ? "s" : ""}`
+      );
+    } catch {
+      toast.error("Erreur lors de la confirmation groupée");
+    } finally {
+      setConfirmingAll(false);
+    }
+  }
+
   return (
     <div>
       {/* Bug 4 — Banner nouvelle réservation depuis le hook realtime */}
@@ -329,6 +371,68 @@ export function ReservationList({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Bande 7 jours compact */}
+      {daySummaries && daySummaries.length > 0 && (
+        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+          {daySummaries.map((day) => {
+            const isSelected = day.date === selectedDate;
+            return (
+              <button
+                key={day.date}
+                onClick={() => {
+                  const today = new Date().toISOString().split("T")[0];
+                  if (day.date === today) {
+                    router.push("/reservations");
+                  } else {
+                    router.push(`/reservations?date=${day.date}`);
+                  }
+                }}
+                className={`
+                  flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border text-center transition-all duration-200
+                  hover:shadow-sm cursor-pointer min-w-[72px]
+                  ${isSelected
+                    ? "border-violet bg-violet/8 ring-1 ring-violet/20"
+                    : day.isToday
+                      ? "border-violet/30 bg-violet/[0.03]"
+                      : day.totalReservations > 0
+                        ? "border-blue/15 bg-blue/[0.03] hover:bg-blue/[0.06]"
+                        : "border-border bg-muted/10 hover:bg-muted/20"
+                  }
+                `}
+              >
+                <span className={`text-[10px] font-medium uppercase tracking-wide ${
+                  isSelected ? "text-violet" : "text-muted-foreground"
+                }`}>
+                  {day.dayShort}
+                </span>
+                <span className={`text-sm font-bold leading-tight ${
+                  isSelected ? "text-violet" : "text-foreground"
+                }`}>
+                  {day.dayNumber}
+                  {day.monthShort && (
+                    <span className="text-[9px] text-muted-foreground ml-0.5 lowercase font-medium">
+                      {day.monthShort}
+                    </span>
+                  )}
+                </span>
+                <span className={`text-xs font-semibold tabular-nums ${
+                  day.totalReservations > 0
+                    ? isSelected ? "text-violet" : "text-foreground"
+                    : "text-muted-foreground/40"
+                }`}>
+                  {day.totalReservations}
+                </span>
+                {day.pendingCount > 0 && (
+                  <span className="mt-0.5 inline-flex items-center px-1 py-[1px] rounded-full text-[9px] font-medium bg-amber-100 text-amber-700">
+                    {day.pendingCount} att.
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stats chips */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
@@ -480,18 +584,31 @@ export function ReservationList({
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-4"
                 >
-                  {/* Titre section avec point pulsant */}
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                    </span>
-                    <h3 className="text-sm font-semibold text-amber-800">
-                      Nouvelles réservations à confirmer
-                    </h3>
-                    <span className="text-xs text-amber-600 font-medium bg-amber-100 px-2 py-0.5 rounded-full">
-                      {pendingReservations.length}
-                    </span>
+                  {/* Titre section avec point pulsant + bouton tout confirmer */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                      </span>
+                      <h3 className="text-sm font-semibold text-amber-800">
+                        Nouvelles réservations à confirmer
+                      </h3>
+                      <span className="text-xs text-amber-600 font-medium bg-amber-100 px-2 py-0.5 rounded-full">
+                        {pendingReservations.length}
+                      </span>
+                    </div>
+                    {pendingReservations.length > 1 && (
+                      <Button
+                        size="xs"
+                        className="bg-green hover:bg-green/90 text-white gap-1"
+                        onClick={handleConfirmAllPending}
+                        disabled={confirmingAll}
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        {confirmingAll ? "Confirmation..." : "Tout confirmer"}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Fond ambré subtil */}

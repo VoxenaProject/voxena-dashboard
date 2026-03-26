@@ -8,12 +8,14 @@ import { ReservationTimeline } from "./reservation-timeline";
 import { ReservationDialog } from "./reservation-dialog";
 import { useRealtimeReservations } from "@/hooks/use-realtime-reservations";
 import type { Reservation, FloorTable } from "@/lib/supabase/types";
+import type { DaySummary } from "@/lib/dashboard/reservation-stats";
 
 interface ReservationViewsProps {
   initialReservations: Reservation[];
   restaurantId: string;
   tables: FloorTable[];
   selectedDate: string;
+  daySummaries?: DaySummary[];
 }
 
 /**
@@ -25,6 +27,7 @@ export function ReservationViews({
   restaurantId,
   tables,
   selectedDate,
+  daySummaries,
 }: ReservationViewsProps) {
   const [view, setView] = useState("liste");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -33,7 +36,7 @@ export function ReservationViews({
   const [defaultTableId, setDefaultTableId] = useState<string | undefined>(undefined);
 
   // Realtime unique — partagé entre les deux vues
-  const realtimeState = useRealtimeReservations(initialReservations, restaurantId);
+  const realtimeState = useRealtimeReservations(initialReservations, restaurantId, selectedDate);
 
   // Ouvrir le dialog pour une réservation existante (clic depuis timeline)
   function handleReservationClick(reservation: Reservation) {
@@ -76,6 +79,7 @@ export function ReservationViews({
           restaurantId={restaurantId}
           tables={tables}
           selectedDate={selectedDate}
+          daySummaries={daySummaries}
         />
       ) : (
         <ReservationTimeline

@@ -1,5 +1,35 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// ── Types pour le résumé 7 jours et les prochaines réservations ──
+
+export interface DaySummary {
+  date: string; // YYYY-MM-DD
+  dayName: string; // "Lundi", "Mardi"...
+  dayShort: string; // "Lun", "Mar"...
+  dayNumber: number; // 26, 27...
+  monthShort: string; // "mar", "avr"...
+  isToday: boolean;
+  totalReservations: number;
+  totalCovers: number;
+  pendingCount: number; // en_attente count
+}
+
+export interface UpcomingReservation {
+  id: string;
+  date: string;
+  time_slot: string;
+  customer_name: string;
+  covers: number;
+  status: string;
+  table_name?: string;
+  dateLabel: string; // "Aujourd'hui", "Demain", "Sam 28"
+}
+
+export interface UpcomingReservationSummary {
+  daySummaries: DaySummary[];
+  upcomingReservations: UpcomingReservation[];
+}
+
 export interface ReservationStats {
   todayReservations: number;
   todayCovers: number;
@@ -104,4 +134,114 @@ export async function getReservationStats(
     weeklyTrends,
     noShowRate,
   };
+}
+
+// ── Noms des jours en français ──
+const dayNamesFull = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const dayNamesShort = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const monthNamesShort = ["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"];
+
+/**
+ * Récupère le résumé des 7 prochains jours + les 10 prochaines réservations.
+ * Utilisé dans le dashboard (onglet réservations) et la page réservations.
+ */
+export async function getUpcomingReservationSummary(
+  supabase: SupabaseClient,
+  restaurantId: string
+): Promise<UpcomingReservationSummary> {
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const in6days = new Date(today);
+  in6days.setDate(in6days.getDate() + 6);
+  const in6daysStr = in6days.toISOString().split("T")[0];
+
+  // Requêtes en parallèle
+  const [weekRes, upcomingRes] = await Promise.all([
+    // Toutes les résas des 7 prochains jours (y compris en_attente pour le pendingCount)
+    supabase
+      .from("reservations")
+      .select("date, covers, status")
+      .eq("restaurant_id", restaurantId)
+      .gte("date", todayStr)
+      .lte("date", in6daysStr)
+      .not("status", "in", '("annulee","no_show")'),
+
+    // Les 10 prochaines réservations (actives)
+    supabase
+      .from("reservations")
+      .select("id, date, customer_name, time_slot, covers, status, table_id, floor_tables(name)")
+      .eq("restaurant_id", restaurantId)
+      .gte("date", todayStr)
+      .in("status", ["en_attente", "confirmee", "assise"])
+      .order("date", { ascending: true })
+      .order("time_slot", { ascending: true })
+      .limit(10),
+  ]);
+
+  // ── Construire le résumé 7 jours ──
+  const weekResas = weekRes.data || [];
+  const byDate = new Map<string, { count: number; covers: number; pending: number }>();
+  for (const r of weekResas) {
+    const existing = byDate.get(r.date) || { count: 0, covers: 0, pending: 0 };
+    existing.count += 1;
+    existing.covers += r.covers || 0;
+    if (r.status === "en_attente") existing.pending += 1;
+    byDate.set(r.date, existing);
+  }
+
+  const daySummaries: DaySummary[] = [];
+  const todayMonth = today.getMonth();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split("T")[0];
+    const dayData = byDate.get(dateStr) || { count: 0, covers: 0, pending: 0 };
+
+    daySummaries.push({
+      date: dateStr,
+      dayName: dayNamesFull[d.getDay()],
+      dayShort: dayNamesShort[d.getDay()],
+      dayNumber: d.getDate(),
+      monthShort: d.getMonth() !== todayMonth ? monthNamesShort[d.getMonth()] : "",
+      isToday: i === 0,
+      totalReservations: dayData.count,
+      totalCovers: dayData.covers,
+      pendingCount: dayData.pending,
+    });
+  }
+
+  // ── Construire les prochaines réservations avec labels ──
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+  const upcomingReservations: UpcomingReservation[] = (upcomingRes.data || []).map((r) => {
+    // Calculer le label de date
+    let dateLabel: string;
+    if (r.date === todayStr) {
+      dateLabel = "Aujourd'hui";
+    } else if (r.date === tomorrowStr) {
+      dateLabel = "Demain";
+    } else {
+      const rd = new Date(r.date + "T12:00:00");
+      dateLabel = `${dayNamesShort[rd.getDay()]} ${rd.getDate()}`;
+    }
+
+    // Résoudre le nom de table
+    const ft = r.floor_tables;
+    const tableName = Array.isArray(ft) ? ft[0]?.name : (ft as { name: string } | null)?.name;
+
+    return {
+      id: r.id,
+      date: r.date,
+      time_slot: r.time_slot,
+      customer_name: r.customer_name,
+      covers: r.covers,
+      status: r.status,
+      table_name: tableName || undefined,
+      dateLabel,
+    };
+  });
+
+  return { daySummaries, upcomingReservations };
 }
