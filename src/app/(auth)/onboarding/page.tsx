@@ -30,6 +30,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { PasswordStrength } from "@/components/ui/password-strength";
 import type { Profile, Restaurant, Menu, MenuItem } from "@/lib/supabase/types";
 
 // ── Constantes ──
@@ -656,6 +657,8 @@ export default function OnboardingPage() {
                           Encore {8 - newPassword.length} caractère{8 - newPassword.length > 1 ? "s" : ""} requis
                         </p>
                       )}
+                      {/* Indicateur de force du mot de passe */}
+                      <PasswordStrength password={newPassword} variant="dark" />
                     </div>
 
                     {/* Confirmer le mot de passe */}

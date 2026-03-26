@@ -195,6 +195,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Gestion walk-in (statut "assise" directement) ──
+    const isWalkin = requestedStatus === "assise";
+
     // ── Gestion liste d'attente ──
     const isWaitlist = requestedStatus === "liste_attente";
     let waitlistPosition: number | null = null;
@@ -262,7 +265,7 @@ export async function POST(request: NextRequest) {
         customer_name,
         customer_phone: customer_phone || null,
         customer_email: customer_email || null,
-        status: isWaitlist ? "liste_attente" : "en_attente",
+        status: isWaitlist ? "liste_attente" : isWalkin ? "assise" : "en_attente",
         notes: cleanNotes || null,
         preferences: Array.isArray(preferences) ? preferences : (typeof preferences === "string" && preferences.length > 0 ? preferences.split(",").map((p: string) => p.trim()) : []),
         occasion: occasion && occasion !== "Aucune" ? occasion : null,
@@ -363,7 +366,7 @@ export async function PATCH(request: NextRequest) {
     // Vérifier que la réservation existe et que l'user y a accès
     const { data: existing } = await supabase
       .from("reservations")
-      .select("restaurant_id, status, waitlist_position, date")
+      .select("restaurant_id, status, waitlist_position, date, customer_phone")
       .eq("id", id)
       .single();
 
@@ -487,6 +490,53 @@ export async function PATCH(request: NextRequest) {
             })
             .eq("id", item.id);
         }
+      }
+    }
+
+    // ── No-show tracking : mettre à jour les tags du client ──
+    if (updates.status === "no_show" && existing.customer_phone) {
+      try {
+        // Compter les no-shows de ce client dans ce restaurant
+        const { count: noShowTotal } = await supabase
+          .from("reservations")
+          .select("id", { count: "exact", head: true })
+          .eq("restaurant_id", existing.restaurant_id)
+          .eq("customer_phone", existing.customer_phone)
+          .eq("status", "no_show");
+
+        // Récupérer le client existant
+        const { data: existingCustomer } = await supabase
+          .from("customers")
+          .select("id, tags")
+          .eq("restaurant_id", existing.restaurant_id)
+          .eq("phone", existing.customer_phone)
+          .single();
+
+        if (existingCustomer) {
+          const currentTags: string[] = existingCustomer.tags || [];
+          const newTags = [...currentTags];
+
+          // Ajouter "no_show" si pas déjà présent
+          if (!newTags.includes("no_show")) {
+            newTags.push("no_show");
+          }
+
+          // Ajouter "recidiviste" si >= 2 no-shows
+          if ((noShowTotal ?? 0) >= 2 && !newTags.includes("recidiviste")) {
+            newTags.push("recidiviste");
+          }
+
+          // Mettre à jour les tags si changement
+          if (newTags.length !== currentTags.length) {
+            await supabase
+              .from("customers")
+              .update({ tags: newTags })
+              .eq("id", existingCustomer.id);
+          }
+        }
+      } catch (tagErr) {
+        // Ne pas bloquer la réponse si la mise à jour des tags échoue
+        console.warn("[reservations/PATCH] Erreur mise à jour tags no-show:", tagErr);
       }
     }
 

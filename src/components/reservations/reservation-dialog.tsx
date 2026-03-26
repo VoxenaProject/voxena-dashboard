@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, CalendarDays, Hourglass, AlertTriangle } from "lucide-react";
 import { ZONES } from "@/lib/floor-plan/zones";
 import { isValidPhone } from "@/lib/utils/phone";
-import type { Reservation, FloorTable } from "@/lib/supabase/types";
+import type { Reservation, FloorTable, Customer } from "@/lib/supabase/types";
 
 // Créneaux horaires de 30 min de 11:00 à 23:00
 const TIME_SLOTS: string[] = [];
@@ -62,6 +62,8 @@ interface ReservationDialogProps {
   defaultDate?: string;
   /** Forcer le mode liste d'attente */
   forceWaitlist?: boolean;
+  /** Liste de clients existants pour autocomplétion */
+  customers?: Customer[];
   onSaved?: (reservation: Reservation) => void;
 }
 
@@ -73,6 +75,7 @@ export function ReservationDialog({
   reservation,
   defaultDate,
   forceWaitlist = false,
+  customers = [],
   onSaved,
 }: ReservationDialogProps) {
   const isEdit = !!reservation;
@@ -95,6 +98,24 @@ export function ReservationDialog({
   // État liste d'attente
   const [isWaitlist, setIsWaitlist] = useState(false);
   const [noTablesAvailable, setNoTablesAvailable] = useState(false);
+
+  // Détection client avec historique de no-shows
+  const matchedCustomer = useMemo(() => {
+    if (!customerPhone || customerPhone.trim().length < 5) return null;
+    const cleaned = customerPhone.replace(/[\s\-\.\(\)]/g, "");
+    return customers.find((c) => {
+      const cCleaned = c.phone.replace(/[\s\-\.\(\)]/g, "");
+      return cCleaned === cleaned || cCleaned.endsWith(cleaned) || cleaned.endsWith(cCleaned);
+    }) || null;
+  }, [customerPhone, customers]);
+
+  const customerNoShowCount = useMemo(() => {
+    if (!matchedCustomer) return 0;
+    const tags = matchedCustomer.tags || [];
+    if (tags.includes("recidiviste") || tags.includes("récidiviste")) return 2;
+    if (tags.includes("no_show")) return 1;
+    return 0;
+  }, [matchedCustomer]);
 
   // Tables disponibles pour le créneau sélectionné
   const [availableTables, setAvailableTables] = useState<
@@ -359,6 +380,19 @@ export function ReservationDialog({
               )}
             </div>
           </div>
+
+          {/* Alerte no-show client */}
+          {customerNoShowCount > 0 && !isEdit && (
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-sm">
+                <p className="font-medium">Attention — Historique no-show</p>
+                <p className="text-amber-700 text-xs mt-0.5">
+                  Ce client a {customerNoShowCount >= 2 ? `${customerNoShowCount}+` : customerNoShowCount} no-show{customerNoShowCount > 1 ? "s" : ""} précédent{customerNoShowCount > 1 ? "s" : ""}.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Email */}
           <div className="space-y-1.5">

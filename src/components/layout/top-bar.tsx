@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { MessageCircle, X, Send, Loader2, HelpCircle } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, HelpCircle, Sun, Moon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,29 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
   const [agentActive, setAgentActive] = useState(initialAgentStatus === "active");
   const [chatOpen, setChatOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  // Lire la préférence de thème au montage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("voxena-theme");
+      setIsDark(saved === "dark" || document.documentElement.classList.contains("dark"));
+    } catch {
+      // Navigation privée
+    }
+  }, []);
+
+  // Basculer le thème clair/sombre
+  function toggleTheme() {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    document.documentElement.classList.toggle("dark", newDark);
+    try {
+      localStorage.setItem("voxena-theme", newDark ? "dark" : "light");
+    } catch {
+      // Navigation privée
+    }
+  }
 
   async function handleToggle(checked: boolean) {
     setAgentActive(checked);
@@ -86,6 +109,21 @@ export function TopBar({ restaurantId, initialAgentStatus = "active" }: TopBarPr
           title="Relancer le tour guidé"
         >
           <HelpCircle className="w-4 h-4" />
+        </Button>
+
+        {/* Toggle dark mode */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground"
+          onClick={toggleTheme}
+          title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
         </Button>
 
         {/* Bouton support */}

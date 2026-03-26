@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { OpeningHoursEditor } from "./opening-hours-editor";
+import { PasswordStrength } from "@/components/ui/password-strength";
 import { createClient } from "@/lib/supabase/client";
 import { isValidPhone } from "@/lib/utils/phone";
 import type { Restaurant } from "@/lib/supabase/types";
@@ -752,6 +753,8 @@ export function RestaurantSettings({
                   Encore {8 - newPassword.length} caractère{8 - newPassword.length > 1 ? "s" : ""} requis
                 </p>
               )}
+              {/* Indicateur de force du mot de passe */}
+              <PasswordStrength password={newPassword} variant="light" />
             </div>
 
             {/* Confirmer le mot de passe */}

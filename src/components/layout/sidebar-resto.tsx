@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   ShoppingBag,
   UtensilsCrossed,
+  ChefHat,
   CalendarDays,
   LayoutGrid,
   Settings,
@@ -28,11 +29,78 @@ import type { SubscriptionPlan } from "@/lib/supabase/types";
 const navItems = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboard, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
   { href: "/orders", label: "Commandes", icon: ShoppingBag, plans: ["orders", "pro"] as SubscriptionPlan[] },
+  { href: "/kitchen", label: "Cuisine", icon: ChefHat, plans: ["orders", "pro"] as SubscriptionPlan[] },
   { href: "/menu", label: "Menu", icon: UtensilsCrossed, plans: ["orders", "pro"] as SubscriptionPlan[] },
   { href: "/reservations", label: "Réservations", icon: CalendarDays, plans: ["tables", "pro"] as SubscriptionPlan[] },
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] as SubscriptionPlan[] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
 ];
+
+// Composant pour les items de navigation verrouillés avec tooltip
+function LockedNavItem({
+  item,
+  collapsed,
+  onClick,
+}: {
+  item: { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    timerRef.current = setTimeout(() => {
+      setShowTooltip(true);
+    }, 500);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setShowTooltip(false);
+  }, []);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={onClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full opacity-40 cursor-not-allowed ${
+          collapsed ? "justify-center" : ""
+        } text-white/50`}
+      >
+        <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+        {!collapsed && (
+          <span className="flex items-center gap-2">
+            {item.label}
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+          </span>
+        )}
+        {collapsed && (
+          <Crown className="w-3 h-3 text-amber-400 absolute -top-0.5 -right-0.5" />
+        )}
+      </button>
+
+      {/* Tooltip au survol (desktop) */}
+      {showTooltip && (
+        <div
+          className="absolute left-full top-1/2 -translate-y-1/2 ml-2.5 z-50 pointer-events-none"
+        >
+          {/* Flèche */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-[#1a1a2e] rotate-45" />
+          {/* Contenu */}
+          <div className="relative bg-[#1a1a2e] text-white text-xs font-medium px-3 py-2 rounded-lg shadow-lg max-w-[200px] whitespace-nowrap">
+            Disponible avec Voxena Pro
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SidebarContent({
   collapsed,
@@ -127,27 +195,15 @@ function SidebarContent({
               (pathname === item.href ||
                 (item.href !== "/" && pathname.startsWith(item.href)));
 
-            // Item verrouillé — pas de navigation, affichage grisé
+            // Item verrouillé — pas de navigation, affichage grisé + tooltip
             if (!isAvailable) {
               return (
-                <button
+                <LockedNavItem
                   key={item.href}
+                  item={item}
+                  collapsed={collapsed}
                   onClick={() => handleLockedClick(item.label)}
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full opacity-40 cursor-not-allowed ${
-                    collapsed ? "justify-center" : ""
-                  } text-white/50`}
-                >
-                  <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
-                  {!collapsed && (
-                    <span className="flex items-center gap-2">
-                      {item.label}
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
-                    </span>
-                  )}
-                  {collapsed && (
-                    <Crown className="w-3 h-3 text-amber-400 absolute -top-0.5 -right-0.5" />
-                  )}
-                </button>
+                />
               );
             }
 

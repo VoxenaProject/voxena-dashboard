@@ -7,7 +7,7 @@ import { ReservationList } from "./reservation-list";
 import { ReservationTimeline } from "./reservation-timeline";
 import { ReservationDialog } from "./reservation-dialog";
 import { useRealtimeReservations } from "@/hooks/use-realtime-reservations";
-import type { Reservation, FloorTable } from "@/lib/supabase/types";
+import type { Reservation, FloorTable, Customer } from "@/lib/supabase/types";
 import type { DaySummary } from "@/lib/dashboard/reservation-stats";
 
 interface ReservationViewsProps {
@@ -16,6 +16,7 @@ interface ReservationViewsProps {
   tables: FloorTable[];
   selectedDate: string;
   daySummaries?: DaySummary[];
+  customers?: Customer[];
 }
 
 /**
@@ -28,6 +29,7 @@ export function ReservationViews({
   tables,
   selectedDate,
   daySummaries,
+  customers,
 }: ReservationViewsProps) {
   const [view, setView] = useState("liste");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,6 +82,7 @@ export function ReservationViews({
           tables={tables}
           selectedDate={selectedDate}
           daySummaries={daySummaries}
+          customers={customers}
         />
       ) : (
         <ReservationTimeline

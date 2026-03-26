@@ -4,7 +4,7 @@ import { OrderList } from "@/components/orders/order-list";
 import { OrderDatePicker } from "@/components/orders/order-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
-import type { Order } from "@/lib/supabase/types";
+import type { Order, Customer } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +25,23 @@ export default async function OrdersPage({ searchParams }: Props) {
   nextDay.setDate(nextDay.getDate() + 1);
   const nextDayStr = nextDay.toISOString().split("T")[0];
 
-  let query = supabase
-    .from("orders")
-    .select("*")
-    .gte("created_at", `${selectedDate}T00:00:00`)
-    .lt("created_at", `${nextDayStr}T00:00:00`)
-    .order("created_at", { ascending: false });
+  // Récupérer commandes et clients en parallèle
+  const [ordersRes, customersRes] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .gte("created_at", `${selectedDate}T00:00:00`)
+      .lt("created_at", `${nextDayStr}T00:00:00`)
+      .order("created_at", { ascending: false }),
 
-  if (restaurantId) {
-    query = query.eq("restaurant_id", restaurantId);
-  }
+    // Clients du restaurant (pour historique visite)
+    supabase
+      .from("customers")
+      .select("*")
+      .eq("restaurant_id", restaurantId),
+  ]);
 
-  const { data } = await query;
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
   return (
@@ -55,8 +60,9 @@ export default async function OrdersPage({ searchParams }: Props) {
         <OrderDatePicker currentDate={selectedDate} />
       </div>
       <OrderList
-        initialOrders={(data as Order[]) || []}
+        initialOrders={(ordersRes.data as Order[]) || []}
         restaurantId={restaurantId}
+        customers={(customersRes.data as Customer[]) || []}
       />
     </PageWrapper>
   );

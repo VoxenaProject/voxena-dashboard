@@ -5,7 +5,7 @@ import { ReservationViews } from "@/components/reservations/reservation-views";
 import { ReservationDatePicker } from "@/components/reservations/reservation-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
-import type { Reservation, FloorTable } from "@/lib/supabase/types";
+import type { Reservation, FloorTable, Customer } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
   // Récupérer les données en parallèle
-  const [reservationsRes, tablesRes, upcomingSummary] = await Promise.all([
+  const [reservationsRes, tablesRes, upcomingSummary, customersRes] = await Promise.all([
     // Réservations du jour sélectionné
     supabase
       .from("reservations")
@@ -44,6 +44,12 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
     // Résumé 7 prochains jours
     getUpcomingReservationSummary(supabase, restaurantId),
+
+    // Clients du restaurant (pour historique et no-show)
+    supabase
+      .from("customers")
+      .select("*")
+      .eq("restaurant_id", restaurantId),
   ]);
 
   return (
@@ -67,6 +73,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
         tables={(tablesRes.data as FloorTable[]) || []}
         selectedDate={selectedDate}
         daySummaries={upcomingSummary.daySummaries}
+        customers={(customersRes.data as Customer[]) || []}
       />
     </PageWrapper>
   );

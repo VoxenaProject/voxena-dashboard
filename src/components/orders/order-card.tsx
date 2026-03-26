@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "./order-status-badge";
 import { getNextAction, isTerminalStatus } from "@/lib/orders/status";
-import type { Order, OrderItem, OrderStatus } from "@/lib/supabase/types";
+import type { Order, OrderItem, OrderStatus, Customer } from "@/lib/supabase/types";
 
 // Steps de la progress bar — adapté au type
 function getStepCount(orderType?: string | null): number {
@@ -50,6 +50,7 @@ interface OrderCardProps {
   onStatusChange?: (orderId: string, status: OrderStatus) => void | Promise<void>;
   index?: number;
   isNew?: boolean;
+  customers?: Customer[];
 }
 
 export function OrderCard({
@@ -57,6 +58,7 @@ export function OrderCard({
   onStatusChange,
   index = 0,
   isNew = false,
+  customers = [],
 }: OrderCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const items = (order.items || []) as OrderItem[];
@@ -65,6 +67,11 @@ export function OrderCard({
   const isLivraison = order.order_type === "livraison";
   const progress = getProgress(order.status);
   const isDone = isTerminalStatus(order.status);
+
+  // Historique client — match par téléphone
+  const customer = order.customer_phone
+    ? customers.find((c) => c.phone === order.customer_phone)
+    : undefined;
 
   // Heure estimée — fournie par l'agent ou calculée (+30min par défaut)
   const agentTime = isLivraison
@@ -162,6 +169,12 @@ export function OrderCard({
                   status={order.status}
                   orderType={order.order_type}
                 />
+                {/* Badge visite client */}
+                {customer && customer.visit_count > 1 && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue/8 text-blue/80">
+                    {customer.visit_count}ème visite
+                  </span>
+                )}
               </div>
 
               {/* Méta-infos */}

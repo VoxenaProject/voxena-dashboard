@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -20,7 +21,7 @@ import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { OrderCard } from "./order-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isTerminalStatus, statusToastLabels } from "@/lib/orders/status";
-import type { Order, OrderStatus } from "@/lib/supabase/types";
+import type { Order, OrderStatus, Customer } from "@/lib/supabase/types";
 
 const statusFilters: { label: string; value: string }[] = [
   { label: "En cours", value: "active" },
@@ -33,9 +34,11 @@ const statusFilters: { label: string; value: string }[] = [
 export function OrderList({
   initialOrders,
   restaurantId,
+  customers = [],
 }: {
   initialOrders: Order[];
   restaurantId?: string | null;
+  customers?: Customer[];
 }) {
   const { orders, updateOrderStatus } = useRealtimeOrders(initialOrders, restaurantId);
   const [filter, setFilter] = useState("active");
@@ -286,10 +289,19 @@ export function OrderList({
           </TabsList>
         </Tabs>
 
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportCSV}>
-          <Download className="w-3.5 h-3.5" />
-          CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/kitchen"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[min(var(--radius-md),12px)] border border-border bg-background text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-all"
+          >
+            <ChefHat className="w-3.5 h-3.5" />
+            Mode cuisine
+          </Link>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportCSV}>
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </Button>
+        </div>
       </div>
 
       {/* Liste */}
@@ -315,6 +327,7 @@ export function OrderList({
                 onStatusChange={handleStatusChange}
                 index={i}
                 isNew={newOrderIds.has(order.id)}
+                customers={customers}
               />
             ))
           )}

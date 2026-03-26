@@ -20,15 +20,19 @@ import {
   UserX,
   Armchair,
   Hourglass,
+  UserPlus,
+  Star,
+  AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReservationDialog } from "./reservation-dialog";
+import { WalkinDialog } from "./walkin-dialog";
 import { WaitlistPanel } from "./waitlist-panel";
 import { getZoneConfig } from "@/lib/floor-plan/zones";
-import type { Reservation, ReservationStatus, FloorTable } from "@/lib/supabase/types";
+import type { Reservation, ReservationStatus, FloorTable, Customer } from "@/lib/supabase/types";
 import type { DaySummary } from "@/lib/dashboard/reservation-stats";
 
 // ── Helpers ──
@@ -139,6 +143,7 @@ interface ReservationListProps {
   tables: FloorTable[];
   selectedDate: string;
   daySummaries?: DaySummary[];
+  customers?: Customer[];
 }
 
 export function ReservationList({
@@ -147,6 +152,7 @@ export function ReservationList({
   tables,
   selectedDate,
   daySummaries,
+  customers = [],
 }: ReservationListProps) {
   const { reservations, newReservationIds, updateReservationStatus, setReservations, showBanner } =
     realtimeState;
@@ -158,6 +164,7 @@ export function ReservationList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [waitlistMode, setWaitlistMode] = useState(false);
+  const [walkinDialogOpen, setWalkinDialogOpen] = useState(false);
 
   // Séparer les réservations en attente (section prioritaire) et les autres
   const { pendingReservations, regularReservations } = useMemo(() => {
@@ -536,6 +543,14 @@ export function ReservationList({
           </Button>
           <Button
             size="sm"
+            className="gap-1.5 bg-green hover:bg-green/90 text-white"
+            onClick={() => setWalkinDialogOpen(true)}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Walk-in
+          </Button>
+          <Button
+            size="sm"
             variant="outline"
             className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
             onClick={handleNewWaitlist}
@@ -624,6 +639,7 @@ export function ReservationList({
                           isPending
                           onStatusChange={handleStatusChange}
                           onEdit={handleEdit}
+                          customers={customers}
                         />
                       ))}
                     </AnimatePresence>
@@ -643,6 +659,7 @@ export function ReservationList({
                     isPending={false}
                     onStatusChange={handleStatusChange}
                     onEdit={handleEdit}
+                    customers={customers}
                   />
                 ))}
               </AnimatePresence>
@@ -660,6 +677,7 @@ export function ReservationList({
                       isPending
                       onStatusChange={handleStatusChange}
                       onEdit={handleEdit}
+                      customers={customers}
                     />
                   ))}
                 </AnimatePresence>
@@ -681,6 +699,14 @@ export function ReservationList({
         reservation={editingReservation}
         defaultDate={selectedDate}
         forceWaitlist={waitlistMode}
+        customers={customers}
+      />
+
+      {/* Dialog walk-in rapide */}
+      <WalkinDialog
+        open={walkinDialogOpen}
+        onOpenChange={setWalkinDialogOpen}
+        restaurantId={restaurantId}
       />
     </div>
   );
@@ -696,6 +722,7 @@ function ReservationCard({
   isPending,
   onStatusChange,
   onEdit,
+  customers = [],
 }: {
   reservation: Reservation;
   tables: FloorTable[];
@@ -704,6 +731,7 @@ function ReservationCard({
   isPending: boolean;
   onStatusChange: (id: string, status: ReservationStatus) => void;
   onEdit: (reservation: Reservation) => void;
+  customers?: Customer[];
 }) {
   const status = statusConfig[reservation.status];
   const table = tables.find((t) => t.id === reservation.table_id);
@@ -711,6 +739,17 @@ function ReservationCard({
   const preferences = reservation.preferences || [];
   const displayNotes = reservation.notes?.trim();
   const timeDisplay = formatTime(reservation.time_slot);
+
+  // Historique client — match par téléphone
+  const customer = reservation.customer_phone
+    ? customers.find((c) => c.phone === reservation.customer_phone)
+    : undefined;
+  const isVip = customer?.tags?.includes("vip");
+  const isFidele = customer?.tags?.includes("habituee") || customer?.tags?.includes("habituée");
+  const isRecidiviste = customer?.tags?.includes("recidiviste") || customer?.tags?.includes("récidiviste");
+  const customerNoShowTags = customer?.tags?.filter((t) => t === "no_show").length || 0;
+  // Compter les no-shows aussi via le tag récidiviste (au moins 2 no-shows)
+  const hasNoShowHistory = isRecidiviste || customerNoShowTags > 0;
 
   return (
     <motion.div
@@ -756,6 +795,11 @@ function ReservationCard({
               {reservation.customer_name}
             </span>
 
+            {/* Étoile VIP */}
+            {isVip && (
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" />
+            )}
+
             {/* Badge statut */}
             <span
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${status.bg} ${status.color} ${status.dashed ? "border border-dashed border-amber-400" : ""}`}
@@ -770,7 +814,36 @@ function ReservationCard({
                 {occasion.emoji} {occasion.label}
               </span>
             )}
+
+            {/* Badge client fidèle */}
+            {isFidele && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet/10 text-violet border border-violet/20">
+                Client fidèle
+              </span>
+            )}
+
+            {/* Badge visite */}
+            {customer && customer.visit_count > 1 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue/8 text-blue/80">
+                {customer.visit_count}ème visite
+              </span>
+            )}
+
+            {/* Badge no-show récidiviste */}
+            {reservation.status === "no_show" && hasNoShowHistory && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+                <AlertTriangle className="w-3 h-3" />
+                Récidiviste
+              </span>
+            )}
           </div>
+
+          {/* Sous-ligne : total dépensé (subtil) */}
+          {customer && customer.total_spent > 0 && (
+            <span className="text-[10px] text-muted-foreground/60">
+              {customer.total_spent.toFixed(0)}€ dépensés
+            </span>
+          )}
 
           {/* Ligne 2 : téléphone, table, zone */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
