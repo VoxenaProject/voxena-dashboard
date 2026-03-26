@@ -362,9 +362,183 @@ export async function sendInvitationEmail({
   }
 }
 
-// ─── Fonction 3 : Confirmation de réservation (placeholder) ───
+// ─── Fonction 3 : Confirmation de réservation ───────────────
 
-// TODO: pour Voxena Tables
-export async function sendReservationConfirmation(): Promise<void> {
-  // Placeholder — sera implémenté quand le module réservation sera prêt
+interface ReservationConfirmationParams {
+  reservation: {
+    customer_name: string;
+    customer_email: string | null;
+    date: string;
+    time_slot: string;
+    covers: number;
+    notes: string | null;
+  };
+  restaurant: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+  };
+}
+
+/** Formate une date YYYY-MM-DD en français (ex: "Vendredi 28 mars 2026") */
+function formatDateFrench(dateStr: string): string {
+  const date = new Date(dateStr + "T12:00:00");
+  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const months = [
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+  ];
+  return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/**
+ * Envoie un email de confirmation de réservation au client.
+ * Ne throw jamais — log les erreurs en console.
+ * Si le client n'a pas d'email, on skip silencieusement.
+ */
+export async function sendReservationConfirmation({
+  reservation,
+  restaurant,
+}: ReservationConfirmationParams): Promise<void> {
+  // Pas d'email client → on skip
+  if (!reservation.customer_email) {
+    console.log("[email] Pas d'email client — confirmation réservation ignorée");
+    return;
+  }
+
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY manquante — confirmation réservation ignorée");
+    return;
+  }
+
+  try {
+    const formattedDate = formatDateFrench(reservation.date);
+
+    const emailHtml = wrapEmail(`
+      <!-- Header avec nom du restaurant -->
+      <tr>
+        <td style="padding:32px 40px 24px;background:linear-gradient(135deg, ${BRAND.navy} 0%, ${BRAND.violet} 100%);">
+          <p style="margin:0 0 8px;font-size:14px;color:${BRAND.blue};font-weight:500;">${restaurant.name}</p>
+          <h1 style="margin:0;font-size:24px;color:${BRAND.white};font-weight:700;font-family:'Space Grotesk','Inter',sans-serif;">
+            Réservation confirmée
+          </h1>
+        </td>
+      </tr>
+
+      <!-- Message de bienvenue -->
+      <tr>
+        <td style="padding:32px 40px 16px;">
+          <p style="margin:0 0 8px;font-size:16px;color:${BRAND.navy};line-height:1.6;">
+            Bonjour <strong>${reservation.customer_name}</strong>,
+          </p>
+          <p style="margin:0;font-size:15px;color:${BRAND.navy};line-height:1.6;">
+            Votre réservation est confirmée !
+          </p>
+        </td>
+      </tr>
+
+      <!-- Carte de détails -->
+      <tr>
+        <td style="padding:8px 40px 24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${BRAND.grayLight};border-radius:12px;border:1px solid #E5E7EB;">
+            <tr>
+              <td style="padding:24px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <!-- Date -->
+                  <tr>
+                    <td style="padding:0 0 16px;">
+                      <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:${BRAND.gray};text-transform:uppercase;letter-spacing:0.5px;">📅 Date</p>
+                      <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND.navy};">${formattedDate}</p>
+                    </td>
+                  </tr>
+                  <!-- Heure -->
+                  <tr>
+                    <td style="padding:0 0 16px;">
+                      <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:${BRAND.gray};text-transform:uppercase;letter-spacing:0.5px;">🕐 Heure</p>
+                      <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND.navy};">${reservation.time_slot}</p>
+                    </td>
+                  </tr>
+                  <!-- Couverts -->
+                  <tr>
+                    <td style="padding:0;">
+                      <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:${BRAND.gray};text-transform:uppercase;letter-spacing:0.5px;">👥 Nombre de couverts</p>
+                      <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND.navy};">${reservation.covers} personne${reservation.covers > 1 ? "s" : ""}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      ${reservation.notes ? `
+      <!-- Notes -->
+      <tr>
+        <td style="padding:0 40px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FFF7ED;border-radius:8px;border-left:4px solid #F59E0B;">
+            <tr>
+              <td style="padding:12px 16px;">
+                <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#92400E;text-transform:uppercase;letter-spacing:0.5px;">📝 Notes</p>
+                <p style="margin:0;font-size:14px;color:${BRAND.navy};">${reservation.notes}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      ` : ""}
+
+      <!-- Informations restaurant -->
+      <tr>
+        <td style="padding:8px 40px 24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${restaurant.address ? `
+            <tr>
+              <td style="padding:0 0 8px;">
+                <p style="margin:0;font-size:14px;color:${BRAND.gray};">
+                  📍 <strong>${restaurant.address}</strong>
+                </p>
+              </td>
+            </tr>
+            ` : ""}
+            ${restaurant.phone ? `
+            <tr>
+              <td style="padding:0 0 8px;">
+                <p style="margin:0;font-size:14px;color:${BRAND.gray};">
+                  📞 <strong>${restaurant.phone}</strong>
+                </p>
+              </td>
+            </tr>
+            ` : ""}
+          </table>
+        </td>
+      </tr>
+
+      <!-- Message modification -->
+      ${restaurant.phone ? `
+      <tr>
+        <td style="padding:0 40px 32px;">
+          <p style="margin:0;font-size:13px;color:${BRAND.gray};line-height:1.5;">
+            Pour modifier ou annuler votre réservation, appelez-nous au <strong style="color:${BRAND.navy};">${restaurant.phone}</strong>.
+          </p>
+        </td>
+      </tr>
+      ` : ""}
+    `);
+
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: reservation.customer_email,
+      subject: `Réservation confirmée — ${restaurant.name}`,
+      html: emailHtml,
+    });
+
+    if (error) {
+      console.error("[email] Erreur envoi confirmation réservation:", error);
+    } else {
+      console.log(`[email] Confirmation réservation envoyée à ${reservation.customer_email}`);
+    }
+  } catch (err) {
+    console.error("[email] Erreur inattendue envoi confirmation réservation:", err);
+  }
 }

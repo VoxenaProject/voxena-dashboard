@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // Récupérer les infos du restaurant (nom, adresse, horaires)
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("name, address, phone, opening_hours")
+      .select("name, address, phone, opening_hours, practical_info")
       .eq("id", restaurantId)
       .single();
 
@@ -71,6 +71,7 @@ export async function GET(request: Request) {
       address: restaurant?.address || null,
       phone: restaurant?.phone || null,
       opening_hours: restaurant?.opening_hours || null,
+      practical_info: restaurant?.practical_info || null,
       menu,
     });
   } catch (err) {

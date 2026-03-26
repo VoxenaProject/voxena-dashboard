@@ -2,15 +2,72 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Save, Loader2, Eye, EyeOff, Lock, Phone, Copy, Check } from "lucide-react";
+import { Save, Loader2, Eye, EyeOff, Lock, Phone, Copy, Check, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { OpeningHoursEditor } from "./opening-hours-editor";
 import { createClient } from "@/lib/supabase/client";
 import type { Restaurant } from "@/lib/supabase/types";
+
+// Types pour les infos pratiques
+interface PracticalInfo {
+  parking: string;
+  parking_details: string;
+  terrasse: boolean;
+  terrasse_capacity: number;
+  pmr: boolean;
+  pmr_notes: string;
+  animaux: string;
+  chaises_hautes: boolean;
+  chaises_hautes_count: number;
+  paiements: string[];
+  wifi: boolean;
+  wifi_code: string;
+  evenements: boolean;
+  evenements_capacity: number;
+  evenements_description: string;
+  dress_code: string;
+}
+
+const defaultPracticalInfo: PracticalInfo = {
+  parking: "",
+  parking_details: "",
+  terrasse: false,
+  terrasse_capacity: 0,
+  pmr: false,
+  pmr_notes: "",
+  animaux: "",
+  chaises_hautes: false,
+  chaises_hautes_count: 0,
+  paiements: [],
+  wifi: false,
+  wifi_code: "",
+  evenements: false,
+  evenements_capacity: 0,
+  evenements_description: "",
+  dress_code: "",
+};
+
+const paymentMethods = [
+  { value: "cb", label: "CB" },
+  { value: "especes", label: "Espèces" },
+  { value: "bancontact", label: "Bancontact" },
+  { value: "payconiq", label: "Payconiq" },
+  { value: "tickets_restaurant", label: "Tickets restaurant" },
+];
 
 export function RestaurantSettings({
   restaurant,
@@ -31,6 +88,13 @@ export function RestaurantSettings({
     restaurant.opening_hours || {}
   );
 
+  // State pour les infos pratiques
+  const [practicalInfo, setPracticalInfo] = useState<PracticalInfo>(() => {
+    const saved = (restaurant as Restaurant & { practical_info?: PracticalInfo }).practical_info;
+    return saved ? { ...defaultPracticalInfo, ...saved } : { ...defaultPracticalInfo };
+  });
+  const [practicalLoading, setPracticalLoading] = useState(false);
+
   // State pour le changement de mot de passe
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -45,6 +109,22 @@ export function RestaurantSettings({
 
   function handleChange(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function updatePracticalInfo<K extends keyof PracticalInfo>(
+    field: K,
+    value: PracticalInfo[K]
+  ) {
+    setPracticalInfo((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function togglePayment(method: string) {
+    setPracticalInfo((prev) => ({
+      ...prev,
+      paiements: prev.paiements.includes(method)
+        ? prev.paiements.filter((p) => p !== method)
+        : [...prev.paiements, method],
+    }));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -67,6 +147,26 @@ export function RestaurantSettings({
       toast.error("Erreur lors de la sauvegarde");
     }
     setLoading(false);
+  }
+
+  async function handleSavePracticalInfo() {
+    setPracticalLoading(true);
+
+    const res = await fetch("/api/restaurants", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: restaurant.id,
+        practical_info: practicalInfo,
+      }),
+    });
+
+    if (res.ok) {
+      toast.success("Infos pratiques enregistrées");
+    } else {
+      toast.error("Erreur lors de la sauvegarde");
+    }
+    setPracticalLoading(false);
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -263,6 +363,246 @@ export function RestaurantSettings({
           Enregistrer les modifications
         </Button>
       </form>
+
+      {/* Section Infos pratiques — hors du formulaire principal */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="font-heading text-lg flex items-center gap-2">
+            <Info className="w-5 h-5" />
+            Infos pratiques
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Parking */}
+            <div className="space-y-2">
+              <Label>Parking</Label>
+              <Select
+                value={practicalInfo.parking}
+                onValueChange={(v) => updatePracticalInfo("parking", v ?? "")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sélectionner une option" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gratuit">Gratuit sur place</SelectItem>
+                  <SelectItem value="public">Parking public à proximité</SelectItem>
+                  <SelectItem value="aucun">Pas de parking</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Détails supplémentaires (optionnel)"
+                value={practicalInfo.parking_details}
+                onChange={(e) => updatePracticalInfo("parking_details", e.target.value)}
+              />
+            </div>
+
+            {/* Terrasse */}
+            <div className="space-y-2">
+              <Label>Terrasse</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={practicalInfo.terrasse}
+                  onCheckedChange={(val) => updatePracticalInfo("terrasse", val)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {practicalInfo.terrasse ? "Disponible" : "Pas de terrasse"}
+                </span>
+              </div>
+              {practicalInfo.terrasse && (
+                <div className="space-y-1">
+                  <Label htmlFor="terrasse-capacity" className="text-xs text-muted-foreground">
+                    Capacité (places)
+                  </Label>
+                  <Input
+                    id="terrasse-capacity"
+                    type="number"
+                    min={0}
+                    value={practicalInfo.terrasse_capacity || ""}
+                    onChange={(e) => updatePracticalInfo("terrasse_capacity", parseInt(e.target.value) || 0)}
+                    placeholder="Nombre de places"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Accessibilité PMR */}
+            <div className="space-y-2">
+              <Label>Accessibilité PMR</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={practicalInfo.pmr}
+                  onCheckedChange={(val) => updatePracticalInfo("pmr", val)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {practicalInfo.pmr ? "Accessible" : "Non accessible"}
+                </span>
+              </div>
+              {practicalInfo.pmr && (
+                <Textarea
+                  placeholder="Notes sur l'accessibilité (rampe, ascenseur, toilettes adaptées...)"
+                  value={practicalInfo.pmr_notes}
+                  onChange={(e) => updatePracticalInfo("pmr_notes", e.target.value)}
+                />
+              )}
+            </div>
+
+            {/* Animaux */}
+            <div className="space-y-2">
+              <Label>Animaux</Label>
+              <Select
+                value={practicalInfo.animaux}
+                onValueChange={(v) => updatePracticalInfo("animaux", v ?? "")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sélectionner une option" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="acceptes">Acceptés</SelectItem>
+                  <SelectItem value="terrasse">En terrasse uniquement</SelectItem>
+                  <SelectItem value="non">Non acceptés</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Chaises hautes */}
+            <div className="space-y-2">
+              <Label>Chaises hautes</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={practicalInfo.chaises_hautes}
+                  onCheckedChange={(val) => updatePracticalInfo("chaises_hautes", val)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {practicalInfo.chaises_hautes ? "Disponibles" : "Non disponibles"}
+                </span>
+              </div>
+              {practicalInfo.chaises_hautes && (
+                <div className="space-y-1">
+                  <Label htmlFor="chaises-count" className="text-xs text-muted-foreground">
+                    Nombre disponible
+                  </Label>
+                  <Input
+                    id="chaises-count"
+                    type="number"
+                    min={0}
+                    value={practicalInfo.chaises_hautes_count || ""}
+                    onChange={(e) => updatePracticalInfo("chaises_hautes_count", parseInt(e.target.value) || 0)}
+                    placeholder="Nombre de chaises hautes"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Paiements acceptés */}
+            <div className="space-y-2">
+              <Label>Paiements acceptés</Label>
+              <div className="space-y-2">
+                {paymentMethods.map((method) => (
+                  <label
+                    key={method.value}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={practicalInfo.paiements.includes(method.value)}
+                      onCheckedChange={() => togglePayment(method.value)}
+                    />
+                    <span className="text-sm">{method.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* WiFi */}
+            <div className="space-y-2">
+              <Label>WiFi</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={practicalInfo.wifi}
+                  onCheckedChange={(val) => updatePracticalInfo("wifi", val)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {practicalInfo.wifi ? "Disponible" : "Pas de WiFi"}
+                </span>
+              </div>
+              {practicalInfo.wifi && (
+                <div className="space-y-1">
+                  <Label htmlFor="wifi-code" className="text-xs text-muted-foreground">
+                    Code WiFi
+                  </Label>
+                  <Input
+                    id="wifi-code"
+                    value={practicalInfo.wifi_code}
+                    onChange={(e) => updatePracticalInfo("wifi_code", e.target.value)}
+                    placeholder="Mot de passe WiFi"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Événements privés */}
+            <div className="space-y-2">
+              <Label>Événements privés</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={practicalInfo.evenements}
+                  onCheckedChange={(val) => updatePracticalInfo("evenements", val)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {practicalInfo.evenements ? "Possibles" : "Non disponibles"}
+                </span>
+              </div>
+              {practicalInfo.evenements && (
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="evenements-capacity" className="text-xs text-muted-foreground">
+                      Capacité maximale
+                    </Label>
+                    <Input
+                      id="evenements-capacity"
+                      type="number"
+                      min={0}
+                      value={practicalInfo.evenements_capacity || ""}
+                      onChange={(e) => updatePracticalInfo("evenements_capacity", parseInt(e.target.value) || 0)}
+                      placeholder="Nombre de personnes"
+                    />
+                  </div>
+                  <Textarea
+                    placeholder="Description (type d'événements, équipements disponibles...)"
+                    value={practicalInfo.evenements_description}
+                    onChange={(e) => updatePracticalInfo("evenements_description", e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Dress code */}
+            <div className="space-y-2">
+              <Label htmlFor="dress-code">Dress code</Label>
+              <Input
+                id="dress-code"
+                value={practicalInfo.dress_code}
+                onChange={(e) => updatePracticalInfo("dress_code", e.target.value)}
+                placeholder="Aucun dress code"
+              />
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            onClick={handleSavePracticalInfo}
+            disabled={practicalLoading}
+            className="w-full"
+          >
+            {practicalLoading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Enregistrer les infos pratiques
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Section Sécurité — hors du formulaire principal */}
       <Card className="shadow-card">

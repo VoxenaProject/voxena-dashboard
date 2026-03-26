@@ -132,6 +132,18 @@ export async function POST(request: Request) {
       payload: { tool: "create_order", order_id: order.id },
     });
 
+    // Upsert client dans le fichier clients (si téléphone fourni)
+    if (customer_phone) {
+      await supabase.rpc("upsert_customer", {
+        p_restaurant_id: restaurant_id,
+        p_phone: customer_phone,
+        p_name: customer_name || null,
+        p_total: total_amount || 0,
+      }).then(({ error: custErr }) => {
+        if (custErr) console.warn("[orders/create] Erreur upsert client:", custErr.message);
+      });
+    }
+
     // Notification email au restaurateur (async, ne bloque pas la réponse)
     const { data: restaurantData } = await supabase
       .from("restaurants")
