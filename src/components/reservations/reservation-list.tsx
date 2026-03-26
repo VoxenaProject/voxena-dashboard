@@ -129,6 +129,7 @@ export function ReservationList({
 
   // Notification son + toast + banner
   const prevCountRef = useRef(initialReservations.length);
+  const prevInitialRef = useRef(initialReservations);
   const [showBanner, setShowBanner] = useState<Reservation | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -136,9 +137,17 @@ export function ReservationList({
     audioRef.current = new Audio("/sounds/new-order.mp3");
   }, []);
 
-  // Notification quand nouvelle réservation arrive
+  // Reset le compteur quand les données serveur changent (changement de date)
   useEffect(() => {
-    if (reservations.length > prevCountRef.current) {
+    if (prevInitialRef.current !== initialReservations) {
+      prevCountRef.current = reservations.length;
+      prevInitialRef.current = initialReservations;
+    }
+  }, [initialReservations, reservations.length]);
+
+  // Notification UNIQUEMENT quand une nouvelle résa arrive via realtime/polling
+  useEffect(() => {
+    if (reservations.length > prevCountRef.current && prevInitialRef.current === initialReservations) {
       const newResa = reservations[0];
 
       // Son de notification

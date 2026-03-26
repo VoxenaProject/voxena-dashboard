@@ -69,10 +69,10 @@ export function ReservationViews({
         </Tabs>
       </div>
 
-      {/* Contenu selon la vue */}
+      {/* Contenu selon la vue — mêmes données realtime pour les deux */}
       {view === "liste" ? (
         <ReservationList
-          initialReservations={initialReservations}
+          initialReservations={reservations}
           restaurantId={restaurantId}
           tables={tables}
           selectedDate={selectedDate}
