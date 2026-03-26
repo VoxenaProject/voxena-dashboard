@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
@@ -40,70 +40,11 @@ export function OrderList({
   restaurantId?: string | null;
   customers?: Customer[];
 }) {
-  const { orders, updateOrderStatus } = useRealtimeOrders(initialOrders, restaurantId);
+  const { orders, updateOrderStatus, newOrderIds, showBanner } = useRealtimeOrders(initialOrders, restaurantId);
   const [filter, setFilter] = useState("active");
   const [search, setSearch] = useState("");
-  const prevCountRef = useRef(initialOrders.length);
-  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
-  const [showBanner, setShowBanner] = useState<Order | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    audioRef.current = new Audio("/sounds/new-order.mp3");
-  }, []);
-
-  // Notification son + toast + banner + flash quand nouvelle commande
-  useEffect(() => {
-    if (orders.length > prevCountRef.current) {
-      const newOrder = orders[0];
-
-      // Son de notification (jouer 2x pour attirer l'attention)
-      audioRef.current?.play().catch(() => {});
-      setTimeout(() => audioRef.current?.play().catch(() => {}), 1500);
-
-      // Toast persistant
-      toast.success(
-        `🔔 Nouvelle commande de ${newOrder.customer_name || "Client"} !`,
-        {
-          description: `${
-            newOrder.order_type === "livraison" ? "🚚 Livraison" : "🛍️ À emporter"
-          } — ${(newOrder.items as unknown[])?.length || 0} article(s)${
-            newOrder.total_amount
-              ? " — " + Number(newOrder.total_amount).toFixed(0) + "€"
-              : ""
-          }`,
-          duration: 15000,
-        }
-      );
-
-      // Banner plein écran temporaire
-      setShowBanner(newOrder);
-      setTimeout(() => setShowBanner(null), 6000);
-
-      // Flash sur la carte
-      setNewOrderIds((prev) => new Set(prev).add(newOrder.id));
-      setTimeout(() => {
-        setNewOrderIds((prev) => {
-          const next = new Set(prev);
-          next.delete(newOrder.id);
-          return next;
-        });
-      }, 8000);
-
-      // Notification navigateur si autorisé
-      if (typeof window !== "undefined" && "Notification" in window) {
-        if (Notification.permission === "granted") {
-          new Notification(`Nouvelle commande — ${newOrder.customer_name || "Client"}`, {
-            body: `${newOrder.order_type === "livraison" ? "Livraison" : "À emporter"} — ${(newOrder.items as unknown[])?.length || 0} article(s)`,
-            icon: "/favicon.ico",
-          });
-        } else if (Notification.permission !== "denied") {
-          Notification.requestPermission();
-        }
-      }
-    }
-    prevCountRef.current = orders.length;
-  }, [orders.length, orders]);
+  // Le hook realtime gère toutes les notifications (son, toast, banner, navigateur)
 
   // Filtrer par statut + recherche texte
   const filtered = useMemo(() => {

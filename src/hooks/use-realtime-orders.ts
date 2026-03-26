@@ -1,8 +1,47 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
+
+/**
+ * Notification pour une nouvelle commande.
+ * Appelé UNIQUEMENT depuis le realtime INSERT ou le polling.
+ */
+function notifyNewOrder(order: Order) {
+  // Son
+  try {
+    const audio = new Audio("/sounds/new-order.mp3");
+    audio.play().catch(() => {});
+    setTimeout(() => audio.play().catch(() => {}), 1500);
+  } catch {}
+
+  // Toast
+  toast.success(
+    `Nouvelle commande de ${order.customer_name || "Client"} !`,
+    {
+      description: `${
+        order.order_type === "livraison" ? "Livraison" : "À emporter"
+      } — ${(order.items as unknown[])?.length || 0} article(s)${
+        order.total_amount ? " — " + Number(order.total_amount).toFixed(0) + "€" : ""
+      }`,
+      duration: 8000,
+    }
+  );
+
+  // Notification navigateur
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "granted") {
+      new Notification(`Nouvelle commande — ${order.customer_name || "Client"}`, {
+        body: `${order.order_type === "livraison" ? "Livraison" : "À emporter"}`,
+        icon: "/favicon.ico",
+      });
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }
+}
 
 export function useRealtimeOrders(
   initialOrders: Order[],
@@ -11,7 +50,10 @@ export function useRealtimeOrders(
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const supabase = createClient();
   const knownIdsRef = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)));
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const [showBanner, setShowBanner] = useState<Order | null>(null);
 
+  // Quand les données serveur changent (changement de date), reset sans notifier
   useEffect(() => {
     setOrders(initialOrders);
     knownIdsRef.current = new Set(initialOrders.map((o) => o.id));
@@ -38,6 +80,18 @@ export function useRealtimeOrders(
           if (!knownIdsRef.current.has(newOrder.id)) {
             knownIdsRef.current.add(newOrder.id);
             setOrders((prev) => [newOrder, ...prev]);
+            // Notification — VRAIE nouvelle commande (realtime INSERT)
+            notifyNewOrder(newOrder);
+            setShowBanner(newOrder);
+            setTimeout(() => setShowBanner(null), 6000);
+            setNewOrderIds((prev) => new Set(prev).add(newOrder.id));
+            setTimeout(() => {
+              setNewOrderIds((prev) => {
+                const next = new Set(prev);
+                next.delete(newOrder.id);
+                return next;
+              });
+            }, 8000);
           }
         }
       )
@@ -73,6 +127,10 @@ export function useRealtimeOrders(
         if (newOrders.length > 0) {
           newOrders.forEach((o) => knownIdsRef.current.add(o.id));
           setOrders((prev) => [...newOrders, ...prev]);
+          // Notification pour la première nouvelle commande (polling)
+          notifyNewOrder(newOrders[0]);
+          setShowBanner(newOrders[0]);
+          setTimeout(() => setShowBanner(null), 6000);
         }
         // Mettre à jour les statuts des commandes existantes
         setOrders((prev) =>
@@ -118,5 +176,5 @@ export function useRealtimeOrders(
     [orders]
   );
 
-  return { orders, updateOrderStatus };
+  return { orders, updateOrderStatus, newOrderIds, showBanner };
 }
