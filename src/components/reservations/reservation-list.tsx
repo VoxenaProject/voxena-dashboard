@@ -145,18 +145,21 @@ export function ReservationList({
       audioRef.current?.play().catch(() => {});
       setTimeout(() => audioRef.current?.play().catch(() => {}), 1500);
 
+      // Formater l'heure sans les secondes (19:30:00 → 19:30)
+      const timeShort = newResa.time_slot?.slice(0, 5) || newResa.time_slot;
+
       // Toast
       toast.success(
         `Nouvelle réservation de ${newResa.customer_name} !`,
         {
-          description: `${newResa.covers} couvert${newResa.covers > 1 ? "s" : ""} — ${newResa.time_slot} — ${newResa.source === "phone" ? "Par téléphone" : "Manuelle"}`,
-          duration: 15000,
+          description: `${newResa.covers} couvert${newResa.covers > 1 ? "s" : ""} — ${newResa.date} à ${timeShort}`,
+          duration: 8000,
         }
       );
 
-      // Banner
+      // Banner (3 secondes)
       setShowBanner(newResa);
-      setTimeout(() => setShowBanner(null), 6000);
+      setTimeout(() => setShowBanner(null), 3000);
 
       // Notification navigateur
       if (typeof window !== "undefined" && "Notification" in window) {
@@ -327,7 +330,7 @@ export function ReservationList({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {showBanner.customer_name} — {showBanner.covers} couvert
-                  {showBanner.covers > 1 ? "s" : ""} à {showBanner.time_slot}
+                  {showBanner.covers > 1 ? "s" : ""} — {showBanner.date} à {showBanner.time_slot?.slice(0, 5)}
                 </p>
               </div>
               <motion.div

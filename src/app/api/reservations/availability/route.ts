@@ -28,26 +28,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Récupérer les horaires d'ouverture et paramètres de réservation du restaurant
-  const { data: restaurant } = await supabase
-    .from("restaurants")
-    .select("opening_hours, default_reservation_duration, turnover_buffer")
-    .eq("id", restaurantId)
-    .single();
-
-  // Déterminer les horaires pour ce jour de la semaine
-  const dayOfWeek = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-  const dayHours = restaurant?.opening_hours?.[dayOfWeek];
-
-  // Horaires par défaut si pas configurés : 11:00 - 23:00
-  let openingSlots: { open: string; close: string }[] = [
-    { open: "11:00", close: "23:00" },
-  ];
-  if (dayHours && Array.isArray(dayHours) && dayHours.length > 0) {
-    openingSlots = dayHours;
-  }
-
-  // Récupérer les tables actives avec capacité >= covers (+ filtre zone optionnel)
+  // Requêtes en parallèle pour réduire la latence
   let tablesQuery = supabase
     .from("floor_tables")
     .select("id, name, capacity, zone")
@@ -60,21 +41,39 @@ export async function GET(request: NextRequest) {
     tablesQuery = tablesQuery.eq("zone", zone);
   }
 
-  const { data: tables } = await tablesQuery;
+  const [restaurantResult, tablesResult, resasResult] = await Promise.all([
+    supabase
+      .from("restaurants")
+      .select("opening_hours, default_reservation_duration, turnover_buffer")
+      .eq("id", restaurantId)
+      .single(),
+    tablesQuery,
+    supabase
+      .from("reservations")
+      .select("table_id, time_slot, duration")
+      .eq("restaurant_id", restaurantId)
+      .eq("date", date)
+      .not("status", "in", '("annulee","no_show")'),
+  ]);
+
+  const restaurant = restaurantResult.data;
+  const tables = tablesResult.data;
+  const reservations = resasResult.data || [];
 
   if (!tables || tables.length === 0) {
     return NextResponse.json({ slots: [] });
   }
 
-  // Récupérer les réservations existantes pour cette date (non annulées)
-  const { data: existingResas } = await supabase
-    .from("reservations")
-    .select("table_id, time_slot, duration")
-    .eq("restaurant_id", restaurantId)
-    .eq("date", date)
-    .not("status", "in", '("annulee","no_show")');
+  // Déterminer les horaires pour ce jour de la semaine
+  const dayOfWeek = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+  const dayHours = restaurant?.opening_hours?.[dayOfWeek];
 
-  const reservations = existingResas || [];
+  let openingSlots: { open: string; close: string }[] = [
+    { open: "11:00", close: "23:00" },
+  ];
+  if (dayHours && Array.isArray(dayHours) && dayHours.length > 0) {
+    openingSlots = dayHours;
+  }
 
   // Durée par défaut et buffer de retournement depuis les settings du restaurant
   const DEFAULT_DURATION = restaurant?.default_reservation_duration ?? 90;
