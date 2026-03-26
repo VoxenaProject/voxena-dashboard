@@ -50,7 +50,7 @@ const statusFilters: { label: string; value: string }[] = [
   { label: "Confirmées", value: "confirmee" },
   { label: "Assises", value: "assise" },
   { label: "Terminées", value: "terminee" },
-  { label: "Liste d\u2019attente", value: "liste_attente" },
+  { label: "Liste d'attente", value: "liste_attente" },
 ];
 
 const statusConfig: Record<
@@ -102,7 +102,7 @@ const statusConfig: Record<
     strikethrough: true,
   },
   liste_attente: {
-    label: "Liste d\u2019attente",
+    label: "Liste d'attente",
     color: "text-amber-800",
     bg: "bg-amber-50/60",
     dot: "bg-amber-600",
@@ -238,7 +238,7 @@ export function ReservationList({
 
         toast.success("Client installé avec succès !");
       } catch {
-        toast.error("Erreur lors de l\u2019installation du client");
+        toast.error("Erreur lors de l'installation du client");
       }
     },
     [setReservations]
@@ -249,9 +249,9 @@ export function ReservationList({
     async (reservationId: string) => {
       try {
         await updateReservationStatus(reservationId, "annulee");
-        toast.success("Entrée retirée de la liste d\u2019attente");
+        toast.success("Entrée retirée de la liste d'attente");
       } catch {
-        toast.error("Erreur lors de l\u2019annulation");
+        toast.error("Erreur lors de l'annulation");
       }
     },
     [updateReservationStatus]
@@ -445,7 +445,7 @@ export function ReservationList({
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
         <StatsChip
           icon={CalendarDays}
-          label="Résas aujourd\u2019hui"
+          label="Résas aujourd'hui"
           count={totalResas}
           color="text-violet"
           bgColor="bg-violet/6"
@@ -478,7 +478,7 @@ export function ReservationList({
         />
         <StatsChip
           icon={Hourglass}
-          label="Liste d\u2019attente"
+          label="Liste d'attente"
           count={waitlistCount}
           color="text-amber-700"
           bgColor="bg-amber-100/50"
@@ -583,7 +583,7 @@ export function ReservationList({
                 title={search ? "Aucun résultat" : "Aucune réservation"}
                 description={
                   search
-                    ? `Aucune réservation ne correspond à \u201C${search}\u201D`
+                    ? `Aucune réservation ne correspond à "${search}"`
                     : "Les nouvelles réservations apparaîtront ici en temps réel."
                 }
                 actionLabel="Nouvelle réservation"
