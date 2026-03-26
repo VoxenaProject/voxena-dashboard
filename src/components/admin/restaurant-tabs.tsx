@@ -45,7 +45,7 @@ export function RestaurantTabs({ restaurant, orders, menus, logs, usageRecords }
     <div>
       <Tabs value={tab} onValueChange={setTab} className="mb-6">
         <TabsList>
-          <TabsTrigger value="overview">Aper\u00e7u</TabsTrigger>
+          <TabsTrigger value="overview">Aperçu</TabsTrigger>
           <TabsTrigger value="edit">Modifier</TabsTrigger>
           <TabsTrigger value="menu">
             Menu
@@ -99,7 +99,7 @@ function OverviewTab({
   const totalItems = menus.reduce((s, m) => s + m.menu_items.length, 0);
   const todayRevenue = todayOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
 
-  // Donn\u00e9es onboarding
+  // Données onboarding
   const hasMenu = menus.length > 0 && menus.some((m) => m.menu_items.length > 0);
   const onboardingData = {
     hasPhone: !!restaurant.phone,
@@ -118,7 +118,7 @@ function OverviewTab({
             <p className="text-xs text-muted-foreground">Commandes aujourd&apos;hui</p>
           </Card>
           <Card className="shadow-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold">{todayRevenue.toFixed(0)}\u20ac</p>
+            <p className="font-heading text-2xl font-bold">{todayRevenue.toFixed(0)}€</p>
             <p className="text-xs text-muted-foreground">Revenus aujourd&apos;hui</p>
           </Card>
           <Card className="shadow-card p-4 text-center">
@@ -138,10 +138,10 @@ function OverviewTab({
           </Card>
         </div>
 
-        {/* Derni\u00e8res commandes */}
+        {/* Dernières commandes */}
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Derni\u00e8res commandes</CardTitle>
+            <CardTitle className="text-sm font-medium">Dernières commandes</CardTitle>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
@@ -153,13 +153,13 @@ function OverviewTab({
                     <div>
                       <p className="text-sm font-medium">{order.customer_name || "Client"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {(order.items as OrderItem[]).length} article{(order.items as OrderItem[]).length > 1 ? "s" : ""} \u00b7{" "}
+                        {(order.items as OrderItem[]).length} article{(order.items as OrderItem[]).length > 1 ? "s" : ""} ·{" "}
                         {format(new Date(order.created_at), "d MMM HH:mm", { locale: fr })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       {order.total_amount != null && (
-                        <span className="font-mono text-sm font-bold">{Number(order.total_amount).toFixed(0)}\u20ac</span>
+                        <span className="font-mono text-sm font-bold">{Number(order.total_amount).toFixed(0)}€</span>
                       )}
                       <OrderStatusBadge status={order.status} orderType={order.order_type} />
                     </div>
@@ -210,7 +210,7 @@ function OverviewTab({
             <CardTitle className="text-sm font-medium">Menu</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <p>{menus.length} cat\u00e9gorie{menus.length > 1 ? "s" : ""} \u00b7 {totalItems} article{totalItems > 1 ? "s" : ""}</p>
+            <p>{menus.length} catégorie{menus.length > 1 ? "s" : ""} · {totalItems} article{totalItems > 1 ? "s" : ""}</p>
           </CardContent>
         </Card>
 
@@ -249,7 +249,7 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
       body: JSON.stringify({ id: restaurant.id, ...form, opening_hours: openingHours }),
     });
     if (res.ok) {
-      toast.success("Restaurant mis \u00e0 jour");
+      toast.success("Restaurant mis à jour");
     } else {
       toast.error("Erreur lors de la sauvegarde");
     }
@@ -267,7 +267,7 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
               <Input value={form.name} onChange={(e) => handleChange("name", e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Propri\u00e9taire</Label>
+              <Label>Propriétaire</Label>
               <Input value={form.owner_name} onChange={(e) => handleChange("owner_name", e.target.value)} />
             </div>
           </div>
@@ -279,11 +279,11 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
       </Card>
 
       <Card className="shadow-card">
-        <CardHeader><CardTitle className="text-sm font-medium">Contact & T\u00e9l\u00e9phonie</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm font-medium">Contact & Téléphonie</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>T\u00e9l\u00e9phone</Label>
+              <Label>Téléphone</Label>
               <Input type="tel" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -293,13 +293,13 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
           </div>
           <div className="space-y-2">
             <Label>WhatsApp Phone ID</Label>
-            <Input value={form.whatsapp_phone_id} onChange={(e) => handleChange("whatsapp_phone_id", e.target.value)} placeholder="ID t\u00e9l\u00e9phone WhatsApp Business API" className="font-mono" />
-            <p className="text-xs text-muted-foreground">Identifiant du t\u00e9l\u00e9phone WhatsApp Business API</p>
+            <Input value={form.whatsapp_phone_id} onChange={(e) => handleChange("whatsapp_phone_id", e.target.value)} placeholder="ID téléphone WhatsApp Business API" className="font-mono" />
+            <p className="text-xs text-muted-foreground">Identifiant du téléphone WhatsApp Business API</p>
           </div>
           <div className="space-y-2">
-            <Label>Num\u00e9ro Telnyx (commandes)</Label>
+            <Label>Numéro Telnyx (commandes)</Label>
             <Input type="tel" value={form.telnyx_phone} onChange={(e) => handleChange("telnyx_phone", e.target.value)} placeholder="+32..." className="font-mono" />
-            <p className="text-xs text-muted-foreground">Num\u00e9ro d\u00e9di\u00e9 pour les commandes vocales de ce restaurant</p>
+            <p className="text-xs text-muted-foreground">Numéro dédié pour les commandes vocales de ce restaurant</p>
           </div>
         </CardContent>
       </Card>
@@ -338,7 +338,7 @@ function MenuTab({ menus }: { menus: RestaurantTabsProps["menus"] }) {
   return (
     <div className="space-y-4">
       {menus.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Aucun menu configur\u00e9</p>
+        <p className="text-sm text-muted-foreground text-center py-8">Aucun menu configuré</p>
       ) : (
         menus.map((menu, i) => (
           <Card key={i} className="shadow-card">
@@ -352,7 +352,7 @@ function MenuTab({ menus }: { menus: RestaurantTabsProps["menus"] }) {
               {menu.menu_items.map((item, j) => (
                 <div key={j} className="flex items-center justify-between py-1.5 text-sm">
                   <span className={!item.is_available ? "text-muted-foreground line-through" : ""}>{item.name}</span>
-                  <span className="font-mono text-xs">{Number(item.price).toFixed(2)}\u20ac</span>
+                  <span className="font-mono text-xs">{Number(item.price).toFixed(2)}€</span>
                 </div>
               ))}
             </CardContent>
@@ -388,10 +388,10 @@ function OrdersTab({ orders }: { orders: Order[] }) {
     all: "Toutes",
     nouvelle: "Nouvelle",
     en_preparation: "En cuisine",
-    prete: "Pr\u00eate",
-    livree: "Livr\u00e9e",
-    recuperee: "R\u00e9cup\u00e9r\u00e9e",
-    annulee: "Annul\u00e9e",
+    prete: "Prête",
+    livree: "Livrée",
+    recuperee: "Récupérée",
+    annulee: "Annulée",
   };
 
   return (
@@ -401,7 +401,7 @@ function OrdersTab({ orders }: { orders: Order[] }) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher un client, t\u00e9l\u00e9phone, article..."
+            placeholder="Rechercher un client, téléphone, article..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -426,7 +426,7 @@ function OrdersTab({ orders }: { orders: Order[] }) {
 
       {/* Liste */}
       {filteredOrders.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Aucune commande trouv\u00e9e</p>
+        <p className="text-sm text-muted-foreground text-center py-8">Aucune commande trouvée</p>
       ) : (
         filteredOrders.map((order) => (
           <Card key={order.id} className="shadow-card p-3">
@@ -440,12 +440,12 @@ function OrdersTab({ orders }: { orders: Order[] }) {
                   {(order.items as OrderItem[]).map((i) => `${i.quantity}x ${i.name}`).join(", ")}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {format(new Date(order.created_at), "d MMM \u00e0 HH:mm", { locale: fr })}
-                  {order.customer_phone && ` \u00b7 ${order.customer_phone}`}
+                  {format(new Date(order.created_at), "d MMM à HH:mm", { locale: fr })}
+                  {order.customer_phone && ` · ${order.customer_phone}`}
                 </p>
               </div>
               {order.total_amount != null && (
-                <span className="font-mono text-base font-bold">{Number(order.total_amount).toFixed(0)}\u20ac</span>
+                <span className="font-mono text-base font-bold">{Number(order.total_amount).toFixed(0)}€</span>
               )}
             </div>
           </Card>
@@ -515,11 +515,11 @@ function BillingTab({
   const currentMonth = new Date().toISOString().slice(0, 7);
   const currentUsage = usageRecords.find((u) => u.month === currentMonth);
 
-  // Revenus g\u00e9n\u00e9r\u00e9s ce mois (commandes du restaurant)
+  // Revenus générés ce mois (commandes du restaurant)
   const monthOrders = orders.filter((o) => o.created_at.startsWith(currentMonth));
   const monthRevenue = monthOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
 
-  // Rentabilit\u00e9 : revenus abonnement vs co\u00fbt usage
+  // Rentabilité : revenus abonnement vs co\u00fbt usage
   const subscriptionAmount = restaurant.subscription_amount || 0;
   const usageCost = currentUsage?.total_cost || 0;
   const profit = subscriptionAmount - usageCost;
@@ -528,8 +528,8 @@ function BillingTab({
   async function handleSubscriptionAction(action: "pause" | "resume" | "cancel") {
     const confirmMessages: Record<string, string> = {
       pause: "Mettre l'abonnement en pause ?",
-      resume: "R\u00e9activer l'abonnement ?",
-      cancel: "R\u00e9silier l'abonnement ? Cette action est irr\u00e9versible.",
+      resume: "Réactiver l'abonnement ?",
+      cancel: "Résilier l'abonnement ? Cette action est irréversible.",
     };
     if (!confirm(confirmMessages[action])) return;
 
@@ -559,11 +559,11 @@ function BillingTab({
         action === "pause"
           ? "Abonnement mis en pause"
           : action === "resume"
-          ? "Abonnement r\u00e9activ\u00e9"
-          : "Abonnement r\u00e9sili\u00e9"
+          ? "Abonnement réactivé"
+          : "Abonnement résilié"
       );
     } else {
-      toast.error("Erreur lors de la mise \u00e0 jour");
+      toast.error("Erreur lors de la mise à jour");
     }
     setLoading(false);
   }
@@ -577,7 +577,7 @@ function BillingTab({
       body: JSON.stringify({ id: restaurant.id, billing_notes: billingNotes }),
     });
     if (res.ok) {
-      toast.success("Notes sauvegard\u00e9es");
+      toast.success("Notes sauvegardées");
     } else {
       toast.error("Erreur");
     }
@@ -598,15 +598,15 @@ function BillingTab({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground text-xs">Plan</p>
-              <p className="font-medium">{restaurant.subscription_plan || "Non d\u00e9fini"}</p>
+              <p className="font-medium">{restaurant.subscription_plan || "Non défini"}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Montant mensuel</p>
-              <p className="font-mono font-bold">{subscriptionAmount.toFixed(0)}\u20ac</p>
+              <p className="font-mono font-bold">{subscriptionAmount.toFixed(0)}€</p>
             </div>
             {restaurant.subscription_started_at && (
               <div>
-                <p className="text-muted-foreground text-xs">D\u00e9but</p>
+                <p className="text-muted-foreground text-xs">Début</p>
                 <p className="text-sm">{format(new Date(restaurant.subscription_started_at), "d MMMM yyyy", { locale: fr })}</p>
               </div>
             )}
@@ -618,7 +618,7 @@ function BillingTab({
             )}
             {restaurant.cancelled_at && (
               <div>
-                <p className="text-muted-foreground text-xs">R\u00e9sili\u00e9 le</p>
+                <p className="text-muted-foreground text-xs">Résilié le</p>
                 <p className="text-sm text-red-500">{format(new Date(restaurant.cancelled_at), "d MMMM yyyy", { locale: fr })}</p>
               </div>
             )}
@@ -649,7 +649,7 @@ function BillingTab({
                 disabled={loading}
               >
                 <Play className="w-3.5 h-3.5" />
-                R\u00e9activer
+                Réactiver
               </Button>
             )}
             {restaurant.subscription_status &&
@@ -662,7 +662,7 @@ function BillingTab({
                   disabled={loading}
                 >
                   <XCircle className="w-3.5 h-3.5" />
-                  R\u00e9silier
+                  Résilier
                 </Button>
               )}
           </div>
@@ -689,36 +689,36 @@ function BillingTab({
                 <p className="text-xs text-muted-foreground">Appels</p>
               </div>
               <div>
-                <p className="font-heading text-xl font-bold font-mono">{currentUsage.total_cost.toFixed(2)}\u20ac</p>
+                <p className="font-heading text-xl font-bold font-mono">{currentUsage.total_cost.toFixed(2)}€</p>
                 <p className="text-xs text-muted-foreground">Co\u00fbt</p>
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Aucune donn\u00e9e d&apos;usage pour ce mois
+              Aucune donnée d&apos;usage pour ce mois
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Rentabilit\u00e9 */}
+      {/* Rentabilité */}
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Rentabilit\u00e9</CardTitle>
+          <CardTitle className="text-sm font-medium">Rentabilité</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="font-heading text-xl font-bold font-mono text-green">{subscriptionAmount.toFixed(0)}\u20ac</p>
+              <p className="font-heading text-xl font-bold font-mono text-green">{subscriptionAmount.toFixed(0)}€</p>
               <p className="text-xs text-muted-foreground">Abonnement</p>
             </div>
             <div>
-              <p className="font-heading text-xl font-bold font-mono text-red-500">{usageCost.toFixed(2)}\u20ac</p>
+              <p className="font-heading text-xl font-bold font-mono text-red-500">{usageCost.toFixed(2)}€</p>
               <p className="text-xs text-muted-foreground">Co\u00fbt usage</p>
             </div>
             <div>
               <p className={`font-heading text-xl font-bold font-mono ${profit >= 0 ? "text-green" : "text-red-500"}`}>
-                {profit >= 0 ? "+" : ""}{profit.toFixed(2)}\u20ac
+                {profit >= 0 ? "+" : ""}{profit.toFixed(2)}€
               </p>
               <p className="text-xs text-muted-foreground">Marge</p>
             </div>
@@ -726,7 +726,7 @@ function BillingTab({
           <Separator className="my-4" />
           <div className="text-center">
             <p className="text-xs text-muted-foreground">
-              {monthOrders.length} commandes ce mois \u00b7 {monthRevenue.toFixed(0)}\u20ac de CA g\u00e9n\u00e9r\u00e9 pour le restaurant
+              {monthOrders.length} commandes ce mois · {monthRevenue.toFixed(0)}€ de CA généré pour le restaurant
             </p>
           </div>
         </CardContent>
@@ -759,7 +759,7 @@ function BillingTab({
                       <td className="py-2 font-medium">{record.month}</td>
                       <td className="py-2 text-right font-mono">{record.call_count}</td>
                       <td className="py-2 text-right font-mono">{record.total_minutes.toFixed(1)}</td>
-                      <td className="py-2 text-right font-mono">{record.total_cost.toFixed(2)}\u20ac</td>
+                      <td className="py-2 text-right font-mono">{record.total_cost.toFixed(2)}€</td>
                     </tr>
                   ))}
                 </tbody>

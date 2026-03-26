@@ -12,15 +12,15 @@ const statusConfig: Record<SubscriptionStatus, { label: string; className: strin
     className: "bg-green/12 text-green border-green/20",
   },
   past_due: {
-    label: "Impay\u00e9",
+    label: "Impayé",
     className: "bg-red-500/12 text-red-500 border-red-500/20",
   },
   cancelled: {
-    label: "R\u00e9sili\u00e9",
+    label: "Résilié",
     className: "bg-muted text-muted-foreground border-border",
   },
   paused: {
-    label: "Paus\u00e9",
+    label: "Pausé",
     className: "bg-amber-500/12 text-amber-600 border-amber-500/20",
   },
 };
@@ -33,7 +33,7 @@ export function SubscriptionBadge({
   if (!status) {
     return (
       <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
-        Non configur\u00e9
+        Non configuré
       </Badge>
     );
   }

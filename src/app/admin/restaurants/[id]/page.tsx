@@ -46,7 +46,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
       .eq("restaurant_id", id)
       .order("created_at", { ascending: false })
       .limit(50),
-    // R\u00e9cup\u00e9rer les 12 derniers mois d'usage (table peut ne pas exister)
+    // Récupérer les 12 derniers mois d'usage (table peut ne pas exister)
     supabase
       .from("usage_records")
       .select("*")
@@ -102,7 +102,7 @@ export default async function AdminRestaurantDetailPage({ params }: Props) {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Cr\u00e9\u00e9 le {format(new Date(resto.created_at), "d MMMM yyyy", { locale: fr })}
+            Créé le {format(new Date(resto.created_at), "d MMMM yyyy", { locale: fr })}
           </p>
         </div>
         <RestaurantAdminActions restaurant={resto} />

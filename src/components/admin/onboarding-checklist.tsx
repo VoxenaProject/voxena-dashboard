@@ -10,10 +10,10 @@ interface OnboardingData {
 }
 
 const checks = [
-  { key: "hasPhone" as const, label: "T\u00e9l\u00e9phone configur\u00e9" },
-  { key: "hasMenu" as const, label: "Menu cr\u00e9\u00e9" },
-  { key: "hasAgentId" as const, label: "Agent vocal connect\u00e9" },
-  { key: "hasWhatsApp" as const, label: "WhatsApp configur\u00e9" },
+  { key: "hasPhone" as const, label: "Téléphone configuré" },
+  { key: "hasMenu" as const, label: "Menu créé" },
+  { key: "hasAgentId" as const, label: "Agent vocal connecté" },
+  { key: "hasWhatsApp" as const, label: "WhatsApp configuré" },
 ];
 
 export function OnboardingChecklist({

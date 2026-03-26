@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminRestaurantsPage() {
   const supabase = createServiceClient();
 
-  // R\u00e9cup\u00e9rer restaurants, commandes du jour et menus en parall\u00e8le
+  // Récupérer restaurants, commandes du jour et menus en parallèle
   const today = new Date().toISOString().split("T")[0];
 
   const [{ data: restaurants }, { data: todayOrders }, { data: menus }] =
@@ -39,10 +39,10 @@ export default async function AdminRestaurantsPage() {
     orderCountByRestaurant[order.restaurant_id] = (orderCountByRestaurant[order.restaurant_id] || 0) + 1;
   }
 
-  // D\u00e9terminer quels restaurants ont un menu
+  // Déterminer quels restaurants ont un menu
   const restaurantsWithMenu = new Set(typedMenus.map((m) => m.restaurant_id));
 
-  // Enrichir les donn\u00e9es pour le client
+  // Enrichir les données pour le client
   const enrichedRestaurants = typedRestaurants.map((r) => ({
     ...r,
     todayOrders: orderCountByRestaurant[r.id] || 0,
@@ -61,7 +61,7 @@ export default async function AdminRestaurantsPage() {
               Restaurants
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              G\u00e9rez tous les restaurants connect\u00e9s \u00e0 Voxena
+              Gérez tous les restaurants connectés à Voxena
             </p>
           </div>
           <Link href="/admin/restaurants/new">
