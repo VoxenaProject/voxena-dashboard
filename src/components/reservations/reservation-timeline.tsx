@@ -94,9 +94,12 @@ interface TimelineProps {
 
 // ── Helpers ──
 
-/** Convertir "HH:MM" en minutes depuis START_HOUR */
+/** Convertir "HH:MM" ou "HH:MM:SS" en minutes depuis START_HOUR */
 function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
+  // Supporte les formats "HH:MM" et "HH:MM:SS" (Supabase renvoie parfois les secondes)
+  const parts = time.split(":");
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
   return (h - START_HOUR) * 60 + m;
 }
 
@@ -547,7 +550,7 @@ function ReservationTooltip({
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3" />
-            <span className="font-mono">{reservation.time_slot}</span>
+            <span className="font-mono">{reservation.time_slot.slice(0, 5)}</span>
             <span className="opacity-60">
               ({reservation.duration || 90} min)
             </span>

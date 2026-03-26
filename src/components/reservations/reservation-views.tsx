@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { List, GanttChart } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReservationList } from "./reservation-list";
 import { ReservationTimeline } from "./reservation-timeline";
 import { ReservationDialog } from "./reservation-dialog";
@@ -18,7 +18,7 @@ interface ReservationViewsProps {
 
 /**
  * Conteneur des vues réservations : Liste + Timeline Gantt.
- * Gère le switch de vue et le dialog partagé pour ouvrir/créer des résas.
+ * Source unique de vérité realtime — distribue les mêmes données aux deux vues.
  */
 export function ReservationViews({
   initialReservations,
@@ -32,8 +32,8 @@ export function ReservationViews({
   const [defaultTime, setDefaultTime] = useState<string | undefined>(undefined);
   const [defaultTableId, setDefaultTableId] = useState<string | undefined>(undefined);
 
-  // Realtime partagé entre les deux vues
-  const { reservations } = useRealtimeReservations(initialReservations, restaurantId);
+  // Realtime unique — partagé entre les deux vues
+  const realtimeState = useRealtimeReservations(initialReservations, restaurantId);
 
   // Ouvrir le dialog pour une réservation existante (clic depuis timeline)
   function handleReservationClick(reservation: Reservation) {
@@ -72,14 +72,14 @@ export function ReservationViews({
       {/* Contenu selon la vue — mêmes données realtime pour les deux */}
       {view === "liste" ? (
         <ReservationList
-          initialReservations={reservations}
+          realtimeState={realtimeState}
           restaurantId={restaurantId}
           tables={tables}
           selectedDate={selectedDate}
         />
       ) : (
         <ReservationTimeline
-          reservations={reservations}
+          reservations={realtimeState.reservations}
           tables={tables}
           onReservationClick={handleReservationClick}
           onSlotClick={handleSlotClick}

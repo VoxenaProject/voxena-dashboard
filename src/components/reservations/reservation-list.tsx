@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -24,11 +24,17 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useRealtimeReservations } from "@/hooks/use-realtime-reservations";
 import { ReservationDialog } from "./reservation-dialog";
 import { WaitlistPanel } from "./waitlist-panel";
 import { getZoneConfig } from "@/lib/floor-plan/zones";
 import type { Reservation, ReservationStatus, FloorTable } from "@/lib/supabase/types";
+
+// ── Helpers ──
+
+/** Formate un time_slot "HH:MM:SS" ou "HH:MM" en "HH:MM" pour l'affichage */
+function formatTime(timeSlot: string): string {
+  return timeSlot.slice(0, 5);
+}
 
 // ── Configuration ──
 
@@ -38,58 +44,68 @@ const statusFilters: { label: string; value: string }[] = [
   { label: "Confirmées", value: "confirmee" },
   { label: "Assises", value: "assise" },
   { label: "Terminées", value: "terminee" },
-  { label: "Liste d'attente", value: "liste_attente" },
+  { label: "Liste d\u2019attente", value: "liste_attente" },
 ];
 
 const statusConfig: Record<
   ReservationStatus,
-  { label: string; color: string; bg: string; dot: string }
+  { label: string; color: string; bg: string; dot: string; border: string; strikethrough?: boolean; dashed?: boolean }
 > = {
   en_attente: {
     label: "En attente",
     color: "text-amber-700",
-    bg: "bg-amber-100",
+    bg: "bg-amber-50",
     dot: "bg-amber-500",
+    border: "border-amber-300",
   },
   confirmee: {
     label: "Confirmée",
     color: "text-green-700",
-    bg: "bg-green-100",
+    bg: "bg-green-50",
     dot: "bg-green-500",
+    border: "border-green-300",
   },
   assise: {
     label: "Assise",
     color: "text-blue-700",
-    bg: "bg-blue-100",
+    bg: "bg-blue-50",
     dot: "bg-blue-500",
+    border: "border-blue-300",
   },
   terminee: {
     label: "Terminée",
-    color: "text-gray-600",
-    bg: "bg-gray-100",
+    color: "text-gray-500",
+    bg: "bg-gray-50",
     dot: "bg-gray-400",
+    border: "border-gray-200",
   },
   annulee: {
     label: "Annulée",
     color: "text-red-700",
-    bg: "bg-red-100",
+    bg: "bg-red-50",
     dot: "bg-red-500",
+    border: "border-red-300",
+    strikethrough: true,
   },
   no_show: {
     label: "No-show",
     color: "text-red-900",
-    bg: "bg-red-200",
+    bg: "bg-red-100",
     dot: "bg-red-700",
+    border: "border-red-400",
+    strikethrough: true,
   },
   liste_attente: {
-    label: "Liste d'attente",
+    label: "Liste d\u2019attente",
     color: "text-amber-800",
-    bg: "bg-amber-50",
+    bg: "bg-amber-50/60",
     dot: "bg-amber-600",
+    border: "border-amber-300",
+    dashed: true,
   },
 };
 
-// Résolution d'occasion à partir de la colonne dédiée
+/** Résolution d'occasion à partir de la colonne dédiée */
 function resolveOccasion(occasion: string | null): { emoji: string; label: string } | null {
   if (!occasion) return null;
   const lower = occasion.toLowerCase();
@@ -103,23 +119,33 @@ function resolveOccasion(occasion: string | null): { emoji: string; label: strin
   return { emoji: "\u{2728}", label: occasion };
 }
 
+// ── Type pour les props du hook realtime ──
+
+interface RealtimeState {
+  reservations: Reservation[];
+  newReservationIds: Set<string>;
+  updateReservationStatus: (id: string, status: ReservationStatus) => Promise<void>;
+  setReservations: React.Dispatch<React.SetStateAction<Reservation[]>>;
+  showBanner: Reservation | null;
+}
+
 // ── Composant principal ──
 
 interface ReservationListProps {
-  initialReservations: Reservation[];
+  realtimeState: RealtimeState;
   restaurantId: string;
   tables: FloorTable[];
   selectedDate: string;
 }
 
 export function ReservationList({
-  initialReservations,
+  realtimeState,
   restaurantId,
   tables,
   selectedDate,
 }: ReservationListProps) {
   const { reservations, newReservationIds, updateReservationStatus, setReservations, showBanner } =
-    useRealtimeReservations(initialReservations, restaurantId);
+    realtimeState;
 
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -127,11 +153,8 @@ export function ReservationList({
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [waitlistMode, setWaitlistMode] = useState(false);
 
-  // Le hook realtime gère toutes les notifications (son, toast, banner, navigateur)
-  // Rien à faire ici — pas de spam au changement de date
-
-  // Filtrer par statut + recherche texte
-  const filtered = useMemo(() => {
+  // Séparer les réservations en attente (section prioritaire) et les autres
+  const { pendingReservations, regularReservations } = useMemo(() => {
     let result = reservations;
 
     // Filtre statut
@@ -149,8 +172,16 @@ export function ReservationList({
       );
     }
 
-    return result;
+    // Séparer en_attente du reste — seulement si on n'a pas filtré sur un statut spécifique
+    const pending = result.filter((r) => r.status === "en_attente");
+    const regular = result
+      .filter((r) => r.status !== "en_attente")
+      .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+    return { pendingReservations: pending, regularReservations: regular };
   }, [reservations, filter, search]);
+
+  const allFiltered = [...pendingReservations, ...regularReservations];
 
   // Stats
   const totalResas = reservations.length;
@@ -194,7 +225,7 @@ export function ReservationList({
 
         toast.success("Client installé avec succès !");
       } catch {
-        toast.error("Erreur lors de l'installation du client");
+        toast.error("Erreur lors de l\u2019installation du client");
       }
     },
     [setReservations]
@@ -205,9 +236,9 @@ export function ReservationList({
     async (reservationId: string) => {
       try {
         await updateReservationStatus(reservationId, "annulee");
-        toast.success("Entrée retirée de la liste d'attente");
+        toast.success("Entrée retirée de la liste d\u2019attente");
       } catch {
-        toast.error("Erreur lors de l'annulation");
+        toast.error("Erreur lors de l\u2019annulation");
       }
     },
     [updateReservationStatus]
@@ -250,7 +281,7 @@ export function ReservationList({
 
   return (
     <div>
-      {/* Banner nouvelle réservation */}
+      {/* Bug 4 — Banner nouvelle réservation depuis le hook realtime */}
       <AnimatePresence>
         {showBanner && (
           <motion.div
@@ -284,7 +315,7 @@ export function ReservationList({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {showBanner.customer_name} — {showBanner.covers} couvert
-                  {showBanner.covers > 1 ? "s" : ""} — {showBanner.date} à {showBanner.time_slot?.slice(0, 5)}
+                  {showBanner.covers > 1 ? "s" : ""} — {showBanner.date} à {formatTime(showBanner.time_slot)}
                 </p>
               </div>
               <motion.div
@@ -303,7 +334,7 @@ export function ReservationList({
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
         <StatsChip
           icon={CalendarDays}
-          label="Résas aujourd'hui"
+          label="Résas aujourd\u2019hui"
           count={totalResas}
           color="text-violet"
           bgColor="bg-violet/6"
@@ -336,7 +367,7 @@ export function ReservationList({
         />
         <StatsChip
           icon={Hourglass}
-          label="Liste d'attente"
+          label="Liste d\u2019attente"
           count={waitlistCount}
           color="text-amber-700"
           bgColor="bg-amber-100/50"
@@ -420,41 +451,104 @@ export function ReservationList({
           onCancel={handleCancelWaitlist}
         />
       ) : (
-        <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {filtered.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <EmptyState
-                  icon={CalendarDays}
-                  title={search ? "Aucun résultat" : "Aucune réservation"}
-                  description={
-                    search
-                      ? `Aucune réservation ne correspond à "${search}"`
-                      : "Les nouvelles réservations apparaîtront ici en temps réel."
-                  }
-                  actionLabel="Nouvelle réservation"
-                  onAction={handleNewReservation}
-                />
-              </motion.div>
-            ) : (
-              filtered.map((resa, i) => (
-                <ReservationCard
-                  key={resa.id}
-                  reservation={resa}
-                  tables={tables}
-                  index={i}
-                  isNew={newReservationIds.has(resa.id)}
-                  onStatusChange={handleStatusChange}
-                  onEdit={handleEdit}
-                />
-              ))
-            )}
-          </AnimatePresence>
+        <div className="space-y-2">
+          {allFiltered.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <EmptyState
+                icon={CalendarDays}
+                title={search ? "Aucun résultat" : "Aucune réservation"}
+                description={
+                  search
+                    ? `Aucune réservation ne correspond à \u201C${search}\u201D`
+                    : "Les nouvelles réservations apparaîtront ici en temps réel."
+                }
+                actionLabel="Nouvelle réservation"
+                onAction={handleNewReservation}
+              />
+            </motion.div>
+          ) : (
+            <>
+              {/* Bug 1 — Section prioritaire : réservations en attente en haut */}
+              {pendingReservations.length > 0 && filter === "all" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4"
+                >
+                  {/* Titre section avec point pulsant */}
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                    </span>
+                    <h3 className="text-sm font-semibold text-amber-800">
+                      Nouvelles réservations à confirmer
+                    </h3>
+                    <span className="text-xs text-amber-600 font-medium bg-amber-100 px-2 py-0.5 rounded-full">
+                      {pendingReservations.length}
+                    </span>
+                  </div>
+
+                  {/* Fond ambré subtil */}
+                  <div className="rounded-xl bg-gradient-to-b from-amber-50/80 to-amber-50/30 border border-amber-200/60 p-3 space-y-2">
+                    <AnimatePresence mode="popLayout">
+                      {pendingReservations.map((resa, i) => (
+                        <ReservationCard
+                          key={resa.id}
+                          reservation={resa}
+                          tables={tables}
+                          index={i}
+                          isNew={newReservationIds.has(resa.id)}
+                          isPending
+                          onStatusChange={handleStatusChange}
+                          onEdit={handleEdit}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Réservations régulières (triées par heure) */}
+              <AnimatePresence mode="popLayout">
+                {regularReservations.map((resa, i) => (
+                  <ReservationCard
+                    key={resa.id}
+                    reservation={resa}
+                    tables={tables}
+                    index={i}
+                    isNew={newReservationIds.has(resa.id)}
+                    isPending={false}
+                    onStatusChange={handleStatusChange}
+                    onEdit={handleEdit}
+                  />
+                ))}
+              </AnimatePresence>
+
+              {/* Si filtre "en_attente", afficher les pending dans le flux normal */}
+              {filter === "en_attente" && (
+                <AnimatePresence mode="popLayout">
+                  {pendingReservations.map((resa, i) => (
+                    <ReservationCard
+                      key={resa.id}
+                      reservation={resa}
+                      tables={tables}
+                      index={i}
+                      isNew={newReservationIds.has(resa.id)}
+                      isPending
+                      onStatusChange={handleStatusChange}
+                      onEdit={handleEdit}
+                    />
+                  ))}
+                </AnimatePresence>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -475,13 +569,14 @@ export function ReservationList({
   );
 }
 
-// ── Carte de réservation ──
+// ── Carte de réservation — Design premium ──
 
 function ReservationCard({
   reservation,
   tables,
   index,
   isNew,
+  isPending,
   onStatusChange,
   onEdit,
 }: {
@@ -489,6 +584,7 @@ function ReservationCard({
   tables: FloorTable[];
   index: number;
   isNew: boolean;
+  isPending: boolean;
   onStatusChange: (id: string, status: ReservationStatus) => void;
   onEdit: (reservation: Reservation) => void;
 }) {
@@ -496,69 +592,70 @@ function ReservationCard({
   const table = tables.find((t) => t.id === reservation.table_id);
   const occasion = resolveOccasion(reservation.occasion);
   const preferences = reservation.preferences || [];
-
-  // Les notes sont désormais pures (pas de métadonnées encodées)
   const displayNotes = reservation.notes?.trim();
+  const timeDisplay = formatTime(reservation.time_slot);
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{
         opacity: 1,
         y: 0,
-        transition: { delay: index * 0.03 },
+        transition: { delay: index * 0.03, type: "spring", damping: 25, stiffness: 300 },
       }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className={`relative rounded-xl border bg-card p-4 shadow-card transition-all hover:shadow-card-hover cursor-pointer ${
-        isNew ? "ring-2 ring-violet/40 animate-pulse" : ""
-      }`}
+      exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+      className={`group relative rounded-xl border bg-card transition-all duration-200 cursor-pointer
+        ${isPending ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15),0_2px_8px_rgba(245,158,11,0.08)]" : "shadow-card border-border"}
+        ${isNew ? "ring-2 ring-violet/40 shadow-[0_0_20px_rgba(66,55,196,0.12)]" : ""}
+        hover:shadow-card-hover hover:-translate-y-[1px]
+      `}
       onClick={() => onEdit(reservation)}
     >
-      <div className="flex items-start gap-4">
-        {/* Heure — gros, monospace */}
-        <div className="flex-shrink-0 text-center">
-          <span className="font-mono text-2xl font-bold text-foreground leading-none">
-            {reservation.time_slot}
+      {/* Barre d'accentuation latérale pour les réservations en attente */}
+      {isPending && (
+        <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-amber-400" />
+      )}
+
+      <div className="flex items-stretch p-4">
+        {/* Colonne gauche : heure en gros + couverts */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center pr-4 border-r border-border/50 min-w-[72px]">
+          <span className="font-mono text-2xl font-bold text-foreground leading-none tracking-tight">
+            {timeDisplay}
           </span>
-          <span className="block text-[10px] text-muted-foreground mt-0.5 font-medium">
-            {reservation.covers} couvert{reservation.covers > 1 ? "s" : ""}
-          </span>
+          <div className="flex items-center gap-1 mt-1.5">
+            <Users className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-medium">
+              {reservation.covers} couvert{reservation.covers > 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
 
-        {/* Infos principales */}
-        <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Colonne milieu : informations principales */}
+        <div className="flex-1 min-w-0 pl-4 space-y-2">
+          {/* Ligne 1 : nom + badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-foreground truncate">
+            <span className={`font-semibold text-sm text-foreground truncate ${status.strikethrough ? "line-through opacity-60" : ""}`}>
               {reservation.customer_name}
             </span>
 
             {/* Badge statut */}
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${status.bg} ${status.color}`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${status.bg} ${status.color} ${status.dashed ? "border border-dashed border-amber-400" : ""}`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${isNew ? "animate-pulse" : ""}`} />
               {status.label}
             </span>
 
             {/* Badge occasion */}
             {occasion && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet/10 text-violet">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet/8 text-violet border border-violet/15">
                 {occasion.emoji} {occasion.label}
               </span>
             )}
-
-            {/* Tags préférences */}
-            {preferences.length > 0 && preferences.map((pref) => (
-              <span
-                key={pref}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue/10 text-blue"
-              >
-                {pref}
-              </span>
-            ))}
           </div>
 
+          {/* Ligne 2 : téléphone, table, zone */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {reservation.customer_phone && (
               <span className="flex items-center gap-1">
@@ -566,10 +663,6 @@ function ReservationCard({
                 {reservation.customer_phone}
               </span>
             )}
-            <span className="flex items-center gap-1">
-              <Users className="w-3 h-3" />
-              {reservation.covers}
-            </span>
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {table ? table.name : "Pas de table"}
@@ -585,18 +678,30 @@ function ReservationCard({
             </span>
           </div>
 
-          {/* Notes tronquées */}
-          {displayNotes && (
-            <p className="text-xs text-muted-foreground flex items-start gap-1 line-clamp-1">
-              <StickyNote className="w-3 h-3 mt-0.5 flex-shrink-0" />
-              {displayNotes}
-            </p>
+          {/* Ligne 3 : préférences + notes */}
+          {(preferences.length > 0 || displayNotes) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {preferences.map((pref) => (
+                <span
+                  key={pref}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue/8 text-blue border border-blue/15"
+                >
+                  {pref}
+                </span>
+              ))}
+              {displayNotes && (
+                <span className="text-xs text-muted-foreground/70 italic flex items-center gap-1 truncate max-w-[240px]">
+                  <StickyNote className="w-3 h-3 flex-shrink-0" />
+                  {displayNotes}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Actions rapides */}
+        {/* Colonne droite : actions rapides */}
         <div
-          className="flex items-center gap-1.5 flex-shrink-0"
+          className="flex items-center gap-1.5 flex-shrink-0 pl-3 opacity-80 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
           {reservation.status === "en_attente" && (
@@ -616,7 +721,6 @@ function ReservationCard({
                 onClick={() => onStatusChange(reservation.id, "annulee")}
               >
                 <UserX className="w-3 h-3" />
-                Annuler
               </Button>
             </>
           )}
@@ -638,7 +742,6 @@ function ReservationCard({
                 onClick={() => onStatusChange(reservation.id, "annulee")}
               >
                 <UserX className="w-3 h-3" />
-                Annuler
               </Button>
             </>
           )}
