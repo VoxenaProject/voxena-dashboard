@@ -90,7 +90,10 @@ export async function POST(request: NextRequest) {
       status: requestedStatus,
     } = body;
 
-    if (!restaurant_id || !date || !time_slot || !covers || !customer_name) {
+    // Convertir covers en nombre si envoyé en string par l'agent
+    const coversNum = typeof covers === "string" ? parseInt(covers, 10) : covers;
+
+    if (!restaurant_id || !date || !time_slot || !coversNum || !customer_name) {
       return NextResponse.json(
         { error: "Champs requis : restaurant_id, date, time_slot, covers, customer_name" },
         { status: 400 }
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
         .select("id, name, capacity")
         .eq("restaurant_id", restaurant_id)
         .eq("is_active", true)
-        .gte("capacity", covers)
+        .gte("capacity", coversNum)
         .order("capacity", { ascending: true });
 
       if (availableTables && availableTables.length > 0) {
@@ -219,7 +222,7 @@ export async function POST(request: NextRequest) {
         .eq("restaurant_id", restaurant_id)
         .eq("date", date)
         .eq("status", "assise")
-        .gte("floor_tables.capacity", covers);
+        .gte("floor_tables.capacity", coversNum);
 
       if (seatedResas && seatedResas.length > 0) {
         const now = new Date();
@@ -255,13 +258,13 @@ export async function POST(request: NextRequest) {
         date,
         time_slot,
         duration: effectiveDuration,
-        covers,
+        covers: coversNum,
         customer_name,
         customer_phone: customer_phone || null,
         customer_email: customer_email || null,
         status: isWaitlist ? "liste_attente" : "en_attente",
         notes: cleanNotes || null,
-        preferences: Array.isArray(preferences) ? preferences : [],
+        preferences: Array.isArray(preferences) ? preferences : (typeof preferences === "string" && preferences.length > 0 ? preferences.split(",").map((p: string) => p.trim()) : []),
         occasion: occasion && occasion !== "Aucune" ? occasion : null,
         source: isAgent ? "phone" : source,
         conversation_id: conversation_id || null,
