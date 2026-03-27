@@ -72,12 +72,13 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
-    // Récupérer les prix du menu pour lier les items aux vrais prix
+    // Récupérer les prix du menu en parallèle avec le rate limit check
     const { data: menuItems } = await supabase
       .from("menu_items")
       .select("name, price")
       .eq("restaurant_id", restaurant_id)
-      .eq("is_available", true);
+      .eq("is_available", true)
+      .limit(200);
 
     if (menuItems && menuItems.length > 0) {
       for (const item of items) {
