@@ -3,12 +3,18 @@ import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { getDashboardStats } from "@/lib/dashboard/stats";
 import { getReservationStats, getUpcomingReservationSummary } from "@/lib/dashboard/reservation-stats";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import { ReservationDatePicker } from "@/components/reservations/reservation-date-picker";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { SubscriptionPlan } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardHome() {
+interface Props {
+  searchParams: Promise<{ date?: string }>;
+}
+
+export default async function DashboardHome({ searchParams }: Props) {
+  const { date } = await searchParams;
   const supabase = createServiceClient();
   const restaurantId = await getCurrentRestaurantId();
 
@@ -24,13 +30,17 @@ export default async function DashboardHome() {
   const telnyxPhone = restaurantData?.telnyx_phone || null;
   const plan: SubscriptionPlan = restaurantData?.subscription_plan || "orders";
 
+  // Date sélectionnée ou aujourd'hui
+  const selectedDate = date || new Date().toISOString().split("T")[0];
+  const isToday = selectedDate === new Date().toISOString().split("T")[0];
+
   // Récupérer les stats en parallèle selon le plan
   const showOrders = plan === "orders" || plan === "pro";
   const showReservations = plan === "tables" || plan === "pro";
 
   const [orderStats, reservationStats, upcomingSummary] = await Promise.all([
-    showOrders ? getDashboardStats(supabase, restaurantId) : Promise.resolve(null),
-    showReservations ? getReservationStats(supabase, restaurantId) : Promise.resolve(null),
+    showOrders ? getDashboardStats(supabase, restaurantId, selectedDate) : Promise.resolve(null),
+    showReservations ? getReservationStats(supabase, restaurantId, selectedDate) : Promise.resolve(null),
     showReservations ? getUpcomingReservationSummary(supabase, restaurantId) : Promise.resolve(null),
   ]);
 
@@ -51,13 +61,29 @@ export default async function DashboardHome() {
   }
 
   return (
-    <DashboardContent
-      stats={orderStats}
-      chartData={chartData}
-      telnyxPhone={telnyxPhone}
-      plan={plan}
-      reservationStats={reservationStats}
-      upcomingSummary={upcomingSummary}
-    />
+    <>
+      {/* Sélecteur de date en haut du tableau de bord */}
+      <div className="flex items-center justify-between px-6 lg:px-8 pt-6">
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">
+            Tableau de bord
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isToday
+              ? "Vue en temps réel de votre activité"
+              : `Activité du ${new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-BE", { weekday: "long", day: "numeric", month: "long" })}`}
+          </p>
+        </div>
+        <ReservationDatePicker currentDate={selectedDate} basePath="/" />
+      </div>
+      <DashboardContent
+        stats={orderStats}
+        chartData={chartData}
+        telnyxPhone={telnyxPhone}
+        plan={plan}
+        reservationStats={reservationStats}
+        upcomingSummary={upcomingSummary}
+      />
+    </>
   );
 }

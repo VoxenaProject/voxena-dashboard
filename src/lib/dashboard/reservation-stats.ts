@@ -49,9 +49,10 @@ export interface ReservationStats {
  */
 export async function getReservationStats(
   supabase: SupabaseClient,
-  restaurantId: string
+  restaurantId: string,
+  selectedDate?: string
 ): Promise<ReservationStats> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = selectedDate || new Date().toISOString().split("T")[0];
 
   // Récupérer les résas du jour
   const { data: todayResas } = await supabase

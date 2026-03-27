@@ -7,11 +7,13 @@ function toBrusselsDate(date: Date): string {
 }
 
 // Récupérer les stats du dashboard (today, yesterday, 7 jours)
-export async function getDashboardStats(supabase: SupabaseClient, restaurantId?: string | null) {
+export async function getDashboardStats(supabase: SupabaseClient, restaurantId?: string | null, selectedDate?: string) {
   const now = new Date();
-  const today = toBrusselsDate(now);
+  // Si une date est sélectionnée, l'utiliser comme "today"
+  const today = selectedDate || toBrusselsDate(now);
 
-  const yesterday = new Date(now);
+  const todayDate = new Date(today + "T12:00:00");
+  const yesterday = new Date(todayDate);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = toBrusselsDate(yesterday);
 
