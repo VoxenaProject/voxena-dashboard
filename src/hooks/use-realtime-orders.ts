@@ -45,7 +45,8 @@ function notifyNewOrder(order: Order) {
 
 export function useRealtimeOrders(
   initialOrders: Order[],
-  restaurantId?: string | null
+  restaurantId?: string | null,
+  selectedDate?: string
 ) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const supabase = createClient();
@@ -112,14 +113,20 @@ export function useRealtimeOrders(
       )
       .subscribe();
 
-    // Polling fallback toutes les 10s (au cas où le realtime ne passe pas)
+    // Polling fallback toutes les 10s — poll la date affichée
+    const pollDate = selectedDate || new Date().toISOString().split("T")[0];
+    const pollNextDay = new Date(pollDate + "T12:00:00");
+    pollNextDay.setDate(pollNextDay.getDate() + 1);
+    const pollNextDayStr = pollNextDay.toISOString().split("T")[0];
+
     const pollInterval = setInterval(async () => {
       if (!restaurantId) return;
       const { data } = await supabase
         .from("orders")
         .select("*")
         .eq("restaurant_id", restaurantId)
-        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .gte("created_at", `${pollDate}T00:00:00`)
+        .lt("created_at", `${pollNextDayStr}T00:00:00`)
         .order("created_at", { ascending: false });
 
       if (data) {
@@ -146,7 +153,7 @@ export function useRealtimeOrders(
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [supabase, restaurantId]);
+  }, [supabase, restaurantId, selectedDate]);
 
   // Mise à jour optimiste avec rollback
   const updateOrderStatus = useCallback(
@@ -165,12 +172,18 @@ export function useRealtimeOrders(
           body: JSON.stringify({ status: newStatus }),
         });
         if (!res.ok) {
-          throw new Error("Échec mise à jour");
+          const data = await res.json().catch(() => ({}));
+          // Si c'est une erreur de transition (400), ne pas rollback — le realtime corrigera
+          if (res.status === 400) {
+            console.warn("[orders] Transition refusée:", data.error);
+            return;
+          }
+          throw new Error(data.error || "Échec mise à jour");
         }
-      } catch {
-        // Rollback en cas d'erreur
+      } catch (err) {
+        // Rollback en cas d'erreur réseau
         setOrders(previousOrders);
-        throw new Error("Échec mise à jour du statut");
+        console.error("[orders] Erreur mise à jour:", err);
       }
     },
     [orders]

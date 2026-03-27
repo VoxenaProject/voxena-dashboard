@@ -35,12 +35,14 @@ export function OrderList({
   initialOrders,
   restaurantId,
   customers = [],
+  selectedDate,
 }: {
   initialOrders: Order[];
   restaurantId?: string | null;
   customers?: Customer[];
+  selectedDate?: string;
 }) {
-  const { orders, updateOrderStatus, newOrderIds, showBanner } = useRealtimeOrders(initialOrders, restaurantId);
+  const { orders, updateOrderStatus, newOrderIds, showBanner } = useRealtimeOrders(initialOrders, restaurantId, selectedDate);
   const [filter, setFilter] = useState("active");
   const [search, setSearch] = useState("");
 

@@ -63,6 +63,7 @@ export default async function OrdersPage({ searchParams }: Props) {
         initialOrders={(ordersRes.data as Order[]) || []}
         restaurantId={restaurantId}
         customers={(customersRes.data as Customer[]) || []}
+        selectedDate={selectedDate}
       />
     </PageWrapper>
   );
