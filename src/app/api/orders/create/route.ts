@@ -117,72 +117,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Log l'événement de création
-    await supabase.from("order_events").insert({
-      order_id: order.id,
-      event_type: "created",
-      details: { source: "server_tool", conversation_id },
-    });
-
-    // Log agent
-    await supabase.from("agent_logs").insert({
-      restaurant_id,
-      conversation_id,
-      event_type: "tool_call",
-      payload: { tool: "create_order", order_id: order.id },
-    });
-
-    // Upsert client dans le fichier clients (si téléphone fourni)
-    if (customer_phone) {
-      await supabase.rpc("upsert_customer", {
-        p_restaurant_id: restaurant_id,
-        p_phone: customer_phone,
-        p_name: customer_name || null,
-        p_total: total_amount || 0,
-      }).then(({ error: custErr }) => {
-        if (custErr) console.warn("[orders/create] Erreur upsert client:", custErr.message);
-      });
-    }
-
-    // Notification email au restaurateur (async, ne bloque pas la réponse)
-    const { data: restaurantData } = await supabase
-      .from("restaurants")
-      .select("name")
-      .eq("id", restaurant_id)
-      .single();
-
-    const { data: ownerProfile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("restaurant_id", restaurant_id)
-      .eq("role", "owner")
-      .single();
-
-    if (restaurantData && ownerProfile) {
-      // Envoi en arrière-plan — pas de await pour ne pas ralentir la réponse à ElevenLabs
-      sendOrderNotification({
-        order: {
-          customer_name: order.customer_name,
-          items: order.items,
-          total_amount: order.total_amount,
-          order_type: order.order_type,
-          delivery_address: order.delivery_address,
-          special_instructions: order.special_instructions,
-          pickup_time: order.pickup_time,
-          delivery_time_estimate: order.delivery_time_estimate,
-        },
-        restaurant: {
-          name: restaurantData.name,
-          owner_email: ownerProfile.email,
-        },
-      });
-    }
-
-    return NextResponse.json({
+    // Répondre IMMÉDIATEMENT à l'agent — tout le reste est asynchrone
+    const response = NextResponse.json({
       success: true,
       order_id: order.id,
       message: `Commande #${order.id.slice(0, 8)} créée avec succès.`,
     });
+
+    // Logs, upsert client et email en arrière-plan (ne bloquent PAS la réponse)
+    Promise.all([
+      supabase.from("order_events").insert({
+        order_id: order.id,
+        event_type: "created",
+        details: { source: "server_tool", conversation_id },
+      }),
+      supabase.from("agent_logs").insert({
+        restaurant_id,
+        conversation_id,
+        event_type: "tool_call",
+        payload: { tool: "create_order", order_id: order.id },
+      }),
+      customer_phone
+        ? supabase.rpc("upsert_customer", {
+            p_restaurant_id: restaurant_id,
+            p_phone: customer_phone,
+            p_name: customer_name || null,
+            p_total: total_amount || 0,
+          })
+        : Promise.resolve(),
+    ]).catch((err) => console.warn("[orders/create] Erreur logs/upsert:", err));
+
+    // Email notification en totalement fire-and-forget (ne bloque PAS)
+    (async () => {
+      try {
+        const [{ data: rd }, { data: op }] = await Promise.all([
+          supabase.from("restaurants").select("name").eq("id", restaurant_id).single(),
+          supabase.from("profiles").select("email").eq("restaurant_id", restaurant_id).eq("role", "owner").single(),
+        ]);
+        if (rd && op) {
+          sendOrderNotification({
+            order: { customer_name: order.customer_name, items: order.items, total_amount: order.total_amount, order_type: order.order_type, delivery_address: order.delivery_address, special_instructions: order.special_instructions, pickup_time: order.pickup_time, delivery_time_estimate: order.delivery_time_estimate },
+            restaurant: { name: rd.name, owner_email: op.email },
+          });
+        }
+      } catch (e) { console.warn("[orders/create] Erreur email:", e); }
+    })();
+
+    return response;
   } catch (err) {
     console.error("[orders/create] Erreur:", err);
     return NextResponse.json(
