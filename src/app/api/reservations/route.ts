@@ -148,19 +148,48 @@ export async function POST(request: NextRequest) {
     let resolvedTableId = table_id || null;
 
     if (!resolvedTableId) {
-      // Auto-assigner la plus petite table disponible >= covers
-      const { data: availableTables } = await supabase
+      // Déterminer la zone préférée depuis les preferences
+      const parsedPrefs = Array.isArray(preferences)
+        ? preferences
+        : typeof preferences === "string" && preferences.length > 0
+          ? preferences.split(",").map((p: string) => p.trim())
+          : [];
+      const zonePreference = parsedPrefs.find((p: string) =>
+        ["salle", "terrasse", "bar", "salle_privee", "vip"].includes(p)
+      );
+
+      // Auto-assigner la plus petite table disponible >= covers, en respectant la zone
+      let tablesQuery = supabase
         .from("floor_tables")
-        .select("id, name, capacity")
+        .select("id, name, capacity, zone")
         .eq("restaurant_id", restaurant_id)
         .eq("is_active", true)
         .gte("capacity", coversNum)
         .order("capacity", { ascending: true });
 
-      if (availableTables && availableTables.length > 0) {
-        // Vérifier les conflits de réservation pour chaque table candidate
-        // en tenant compte du buffer de retournement
-        for (const table of availableTables) {
+      // Filtrer par zone si préférence donnée
+      if (zonePreference) {
+        tablesQuery = tablesQuery.eq("zone", zonePreference);
+      }
+
+      const { data: availableTables } = await tablesQuery;
+
+      // Si aucune table dans la zone préférée, chercher dans toutes les zones
+      let candidates = availableTables || [];
+      if (candidates.length === 0 && zonePreference) {
+        const { data: allTables } = await supabase
+          .from("floor_tables")
+          .select("id, name, capacity, zone")
+          .eq("restaurant_id", restaurant_id)
+          .eq("is_active", true)
+          .gte("capacity", coversNum)
+          .order("capacity", { ascending: true });
+        candidates = allTables || [];
+      }
+
+      if (candidates.length > 0) {
+        // Vérifier les conflits pour chaque table candidate
+        for (const table of candidates) {
           const conflict = await checkTableConflict(
             supabase,
             table.id,
