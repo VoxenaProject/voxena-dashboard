@@ -234,7 +234,8 @@ function EditTab({ restaurant }: { restaurant: Restaurant }) {
     telnyx_phone: restaurant.telnyx_phone || "",
     agent_id: restaurant.agent_id || "",
   });
-  const [openingHours, setOpeningHours] = useState(restaurant.opening_hours || {});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [openingHours, setOpeningHours] = useState<any>(restaurant.opening_hours || {});
 
   function handleChange(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
