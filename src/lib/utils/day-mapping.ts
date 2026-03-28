@@ -17,7 +17,7 @@ export const DAY_EN_TO_FR: Record<string, string> = {
  */
 export function getDayFrench(date: Date): string {
   const dayEnglish = date
-    .toLocaleDateString("en-US", { weekday: "long" })
+    .toLocaleDateString("en-US", { weekday: "long", timeZone: "Europe/Brussels" })
     .toLowerCase();
   return DAY_EN_TO_FR[dayEnglish] || dayEnglish;
 }
@@ -46,8 +46,9 @@ export function getOpeningSlots(
 ): { open: string; close: string }[] | null {
   if (!openingHours) return null;
 
+  // Utiliser le timezone Brussels pour déterminer le bon jour
   const dayEnglish = date
-    .toLocaleDateString("en-US", { weekday: "long" })
+    .toLocaleDateString("en-US", { weekday: "long", timeZone: "Europe/Brussels" })
     .toLowerCase();
   const dayFrench = DAY_EN_TO_FR[dayEnglish] || dayEnglish;
 
@@ -98,7 +99,10 @@ export function checkRestaurantOpen(
   reopens: string | null; // Ex: "mardi à 11:30"
 } {
   const slots = getOpeningSlots(openingHours, now);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Convertir en heure Brussels (le serveur Vercel est en UTC)
+  const brusselsTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Brussels" }));
+  const currentMinutes = brusselsTime.getHours() * 60 + brusselsTime.getMinutes();
 
   if (!slots || slots.length === 0) {
     // Fermé aujourd'hui — trouver le prochain jour d'ouverture
