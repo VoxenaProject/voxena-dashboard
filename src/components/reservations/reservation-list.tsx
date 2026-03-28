@@ -373,7 +373,7 @@ export function ReservationList({
       )}
 
       {/* Stats chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
         <StatsChip
           icon={CalendarDays}
           label="Résas aujourd'hui"
@@ -425,7 +425,7 @@ export function ReservationList({
       </div>
 
       {/* Barre de recherche + filtres + bouton ajout */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 mb-4">
         <div className="relative flex-1 w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -461,7 +461,7 @@ export function ReservationList({
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             className="gap-1.5 bg-violet hover:bg-violet/90 text-white"

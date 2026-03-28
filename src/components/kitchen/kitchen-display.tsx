@@ -233,7 +233,7 @@ export function KitchenDisplay({
       </header>
 
       {/* ── Onglets mobile ── */}
-      <div className="sm:hidden flex bg-[#0f1025] border-b border-white/10 flex-shrink-0">
+      <div className="lg:hidden flex bg-[#0f1025] border-b border-white/10 flex-shrink-0">
         {KDS_STATUSES.map((status) => {
           const config = COLUMN_CONFIG[status];
           const count = ordersByStatus[status].length;
@@ -268,7 +268,7 @@ export function KitchenDisplay({
       </div>
 
       {/* ── Colonnes Kanban (desktop/tablette) ── */}
-      <div className="hidden sm:grid sm:grid-cols-3 gap-3 p-3 flex-1 overflow-hidden">
+      <div className="hidden lg:grid lg:grid-cols-3 gap-3 p-3 flex-1 overflow-hidden">
         {KDS_STATUSES.map((status) => {
           const config = COLUMN_CONFIG[status];
           const columnOrders = ordersByStatus[status];
@@ -331,7 +331,7 @@ export function KitchenDisplay({
       </div>
 
       {/* ── Vue mobile (une seule colonne avec onglets) ── */}
-      <div className="sm:hidden flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="lg:hidden flex-1 overflow-y-auto p-3 space-y-2">
         <AnimatePresence mode="popLayout">
           {ordersByStatus[mobileTab].length === 0 ? (
             <motion.div

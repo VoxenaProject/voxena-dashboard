@@ -155,7 +155,7 @@ export function ReservationDatePicker({
 
       {/* Mini calendrier dropdown */}
       {calendarOpen && (
-        <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-2xl shadow-lg p-4 w-[280px] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute left-0 sm:left-auto right-0 top-full mt-2 z-50 bg-card border border-border rounded-2xl shadow-lg p-4 w-[280px] max-w-[calc(100vw-2rem)] animate-in fade-in slide-in-from-top-2 duration-200">
           {/* Header du mois */}
           <div className="flex items-center justify-between mb-3">
             <button

@@ -183,7 +183,7 @@ export function OrderList({
       </div>
 
       {/* Toggle emporter / livraison */}
-      <div className="flex items-center gap-1 mb-5 p-1 bg-muted/50 rounded-xl w-fit">
+      <div className="flex items-center gap-1 mb-5 p-1 bg-muted/50 rounded-xl w-fit flex-wrap">
         <button
           onClick={() => setTypeFilter("all")}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -213,7 +213,7 @@ export function OrderList({
       </div>
 
       {/* Barre de recherche + filtres + export */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -249,7 +249,7 @@ export function OrderList({
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Link
             href="/kitchen"
             className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-xl border border-border bg-background text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-all"

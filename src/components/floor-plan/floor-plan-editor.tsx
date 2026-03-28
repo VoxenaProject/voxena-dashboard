@@ -364,7 +364,7 @@ export function FloorPlanEditor({
   return (
     <div className="flex flex-col h-full">
       {/* Message mobile */}
-      <div className="md:hidden flex flex-col items-center justify-center py-16 px-4">
+      <div className="lg:hidden flex flex-col items-center justify-center py-16 px-4">
         <div className="w-14 h-14 rounded-2xl bg-violet/10 flex items-center justify-center mb-5">
           <Smartphone className="w-7 h-7 text-violet" />
         </div>
@@ -377,7 +377,7 @@ export function FloorPlanEditor({
       </div>
 
       {/* Éditeur (tablette+) */}
-      <div className="hidden md:flex flex-col h-full gap-4">
+      <div className="hidden lg:flex flex-col h-full gap-4">
         {/* Toolbar — glass effect */}
         <div className="flex items-center justify-between gap-3 flex-wrap toolbar-glass rounded-xl p-3 border border-border/50 shadow-sm">
           <div className="flex items-center gap-3">

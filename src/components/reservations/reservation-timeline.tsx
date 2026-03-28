@@ -255,14 +255,14 @@ export function ReservationTimeline({
 
   return (
     <div className="w-full">
-      {/* Message responsive mobile */}
-      <div className="block md:hidden text-center py-8 text-muted-foreground text-sm">
+      {/* Message responsive mobile/tablette */}
+      <div className="block lg:hidden text-center py-8 text-muted-foreground text-sm">
         <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
-        <p>Vue disponible sur tablette/desktop</p>
+        <p>Vue disponible sur desktop</p>
       </div>
 
-      {/* Timeline (hidden on mobile) */}
-      <div className="hidden md:block rounded-xl border bg-card shadow-card overflow-hidden">
+      {/* Timeline (hidden on mobile/tablet) */}
+      <div className="hidden lg:block rounded-xl border bg-card shadow-card overflow-hidden">
         <div className="flex">
           {/* Colonne gauche : noms des tables */}
           <div

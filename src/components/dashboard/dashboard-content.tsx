@@ -155,7 +155,7 @@ function OrdersSection({
   return (
     <div className="space-y-10">
       {/* KPI Cards commandes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" data-tour="kpi-cards">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5" data-tour="kpi-cards">
         <KpiCard
           title="Commandes aujourd'hui"
           value={stats.todayCount}
@@ -200,9 +200,9 @@ function OrdersSection({
       </div>
 
       {/* Charts section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <motion.div
-          className="lg:col-span-2"
+          className="md:col-span-1 lg:col-span-2"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
@@ -339,7 +339,7 @@ function ReservationsSection({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           <KpiCard
             title="Réservations aujourd'hui"
             value={reservationStats.todayReservations}
@@ -388,7 +388,7 @@ function ReservationsSection({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-7 gap-2 max-md:grid-cols-3 max-md:gap-3 max-sm:grid-cols-2">
+              <div className="grid grid-cols-7 gap-2 max-lg:grid-cols-4 max-sm:grid-cols-2 max-lg:gap-3">
                 {daySummaries.map((day, i) => {
                   const hasReservations = day.totalReservations > 0;
                   return (
