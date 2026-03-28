@@ -10,7 +10,26 @@ interface DashboardLiveIndicatorProps {
   restaurantId: string;
 }
 
-// Son de notification via Web Audio API (bip court et doux)
+// Clé sessionStorage pour se souvenir de ce qu'on a déjà vu
+const STORAGE_KEY = "voxena-dash-last-seen";
+
+// Lire le timestamp du dernier dismiss
+function getLastSeen(): string {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+// Sauvegarder le timestamp du dismiss
+function setLastSeen(ts: string) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, ts);
+  } catch {}
+}
+
+// Son de notification via Web Audio API
 function playNotificationSound() {
   try {
     const ctx = new AudioContext();
@@ -24,124 +43,105 @@ function playNotificationSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + 0.3);
-  } catch {
-    // Ignorer si le navigateur bloque l'audio
-  }
+  } catch {}
 }
 
 export function DashboardLiveIndicator({ restaurantId }: DashboardLiveIndicatorProps) {
   const router = useRouter();
-  const [newOrderCount, setNewOrderCount] = useState(0);
-  const [newReservationCount, setNewReservationCount] = useState(0);
+  const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundPlayedRef = useRef(false);
-
-  const totalNew = newOrderCount + newReservationCount;
+  const lastSeenRef = useRef(getLastSeen());
 
   // Polling toutes les 30 secondes
   const poll = useCallback(async () => {
     try {
       const supabase = createClient();
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-      // Deux requêtes COUNT en parallèle — légères
+      // Chercher les items créés APRÈS le dernier dismiss
+      // Si jamais dismissé → chercher les 5 dernières minutes
+      const since = lastSeenRef.current || new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
       const [ordersResult, reservationsResult] = await Promise.all([
         supabase
           .from("orders")
           .select("id", { count: "exact", head: true })
           .eq("restaurant_id", restaurantId)
-          .gte("created_at", fiveMinutesAgo),
+          .gt("created_at", since),
         supabase
           .from("reservations")
           .select("id", { count: "exact", head: true })
           .eq("restaurant_id", restaurantId)
-          .gte("created_at", fiveMinutesAgo),
+          .gt("created_at", since),
       ]);
 
       const orderCount = ordersResult.count ?? 0;
-      const reservationCount = reservationsResult.count ?? 0;
+      const resaCount = reservationsResult.count ?? 0;
+      const total = orderCount + resaCount;
 
-      setNewOrderCount(orderCount);
-      setNewReservationCount(reservationCount);
+      if (total > 0) {
+        // Construire le message
+        const parts: string[] = [];
+        if (orderCount > 0) parts.push(`${orderCount} nouvelle${orderCount > 1 ? "s" : ""} commande${orderCount > 1 ? "s" : ""}`);
+        if (resaCount > 0) parts.push(`${resaCount} nouvelle${resaCount > 1 ? "s" : ""} réservation${resaCount > 1 ? "s" : ""}`);
+        setMessage(parts.join(" + "));
 
-      if (orderCount + reservationCount > 0) {
-        // Ne montrer que si pas déjà dismissed
-        if (!dismissed) {
+        if (!visible) {
           setVisible(true);
-
-          // Jouer le son une seule fois par "vague" de nouvelles entrées
           if (!soundPlayedRef.current) {
             playNotificationSound();
             soundPlayedRef.current = true;
           }
         }
       } else {
-        // Plus rien de nouveau — réinitialiser
         setVisible(false);
-        setDismissed(false);
         soundPlayedRef.current = false;
       }
-    } catch {
-      // Silencieux en cas d'erreur réseau
-    }
-  }, [restaurantId, dismissed]);
+    } catch {}
+  }, [restaurantId, visible]);
 
   useEffect(() => {
-    // Premier poll immédiat
     poll();
-
     const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
   }, [poll]);
 
   // Auto-dismiss après 15 secondes
   useEffect(() => {
-    if (visible && !dismissed) {
+    if (visible) {
       dismissTimerRef.current = setTimeout(() => {
-        setVisible(false);
-        setDismissed(true);
+        dismiss();
       }, 15000);
     }
-
     return () => {
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-      }
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
-  }, [visible, dismissed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
-  // Clic pour rafraîchir les données serveur
-  function handleRefresh() {
+  function dismiss() {
     setVisible(false);
-    setDismissed(true);
     soundPlayedRef.current = false;
+    // Sauvegarder le timestamp actuel → les prochains polls ne montreront que les NOUVEAUX items
+    const now = new Date().toISOString();
+    lastSeenRef.current = now;
+    setLastSeen(now);
+  }
+
+  function handleRefresh() {
+    dismiss();
     router.refresh();
   }
 
-  // Fermer la notification
   function handleDismiss(e: React.MouseEvent) {
     e.stopPropagation();
-    setVisible(false);
-    setDismissed(true);
-  }
-
-  // Construire le message
-  function buildMessage(): string {
-    const parts: string[] = [];
-    if (newOrderCount > 0) {
-      parts.push(`${newOrderCount} nouvelle${newOrderCount > 1 ? "s" : ""} commande${newOrderCount > 1 ? "s" : ""}`);
-    }
-    if (newReservationCount > 0) {
-      parts.push(`${newReservationCount} nouvelle${newReservationCount > 1 ? "s" : ""} réservation${newReservationCount > 1 ? "s" : ""}`);
-    }
-    return parts.join(" + ");
+    dismiss();
   }
 
   return (
     <AnimatePresence>
-      {visible && totalNew > 0 && (
+      {visible && message && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -154,7 +154,7 @@ export function DashboardLiveIndicator({ restaurantId }: DashboardLiveIndicatorP
             <div className="flex items-center gap-2.5">
               <Bell className="w-4 h-4 text-violet" />
               <span className="text-sm text-violet font-medium">
-                {buildMessage()} — Cliquez pour rafraîchir
+                {message} — Cliquez pour rafraîchir
               </span>
             </div>
             <button
