@@ -112,16 +112,9 @@ export async function POST(request: Request) {
 
     // Vérifier si le restaurant est actuellement ouvert
     const hoursCheck = checkRestaurantOpen(restaurantData?.opening_hours);
-    if (!hoursCheck.isOpen) {
-      return NextResponse.json(
-        {
-          error: "Le restaurant est actuellement fermé",
-          closed: true,
-          reopens: hoursCheck.reopens || "prochainement",
-        },
-        { status: 400 }
-      );
-    }
+    // Si le restaurant est fermé, on accepte quand même la commande mais on la programme
+    const isScheduled = !hoursCheck.isOpen;
+    const reopensAt = hoursCheck.reopens || "prochainement";
 
     if (menuItems && menuItems.length > 0) {
       for (const item of items) {
@@ -146,7 +139,9 @@ export async function POST(request: Request) {
         customer_phone: customer_phone || null,
         order_type: normalizedOrderType,
         items,
-        special_instructions: special_instructions || null,
+        special_instructions: isScheduled
+          ? `[COMMANDE PROGRAMMÉE — Restaurant fermé, réouverture ${reopensAt}] ${special_instructions || ""}`
+          : (special_instructions || null),
         pickup_time: pickup_time || null,
         delivery_address: delivery_address || null,
         delivery_time_estimate: delivery_time_estimate || null,
@@ -170,11 +165,19 @@ export async function POST(request: Request) {
       : "";
 
     // Répondre IMMÉDIATEMENT à l'agent — tout le reste est asynchrone
+    // Message adapté selon si le resto est ouvert ou fermé
+    let message = `Commande #${order.id.slice(0, 8)} créée — Total: ${totalFormatted}€${closingSoonNote}`;
+    if (isScheduled) {
+      message = `Commande #${order.id.slice(0, 8)} programmée — Total: ${totalFormatted}€ — Le restaurant est actuellement fermé. La commande sera traitée à la réouverture (${reopensAt}). ${normalizedOrderType === "emporter" ? `Elle sera prête environ 30 minutes après la réouverture.` : `La livraison partira environ 45 minutes après la réouverture.`}`;
+    }
+
     const response = NextResponse.json({
       success: true,
       order_id: order.id,
       total_amount,
-      message: `Commande #${order.id.slice(0, 8)} créée — Total: ${totalFormatted}€${closingSoonNote}`,
+      scheduled: isScheduled,
+      reopens: isScheduled ? reopensAt : undefined,
+      message,
     });
 
     // Logs, upsert client et email en arrière-plan (ne bloquent PAS la réponse)
