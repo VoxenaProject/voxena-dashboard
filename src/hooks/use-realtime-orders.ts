@@ -192,6 +192,7 @@ export function useRealtimeOrders(
         // Rollback en cas d'erreur réseau
         setOrders(previousOrders);
         console.error("[orders] Erreur mise à jour:", err);
+        throw err;
       }
     },
     [orders]

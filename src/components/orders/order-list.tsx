@@ -109,20 +109,10 @@ export function OrderList({
   const preteCount = orders.filter((o) => o.status === "prete").length;
 
   async function handleStatusChange(orderId: string, status: OrderStatus) {
-    const oldOrder = orders.find((o) => o.id === orderId);
-    const oldStatus = oldOrder?.status;
-    updateOrderStatus(orderId, status);
-
-    const res = await fetch(`/api/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-
-    if (res.ok) {
+    try {
+      await updateOrderStatus(orderId, status);
       toast(statusToastLabels[status] || "Statut mis à jour");
-    } else {
-      if (oldStatus) updateOrderStatus(orderId, oldStatus);
+    } catch {
       toast.error("Erreur lors de la mise à jour");
     }
   }
