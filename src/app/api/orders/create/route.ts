@@ -60,6 +60,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Normaliser le type de commande (l'agent peut envoyer en anglais ou avec des typos)
+    const orderTypeMap: Record<string, string> = {
+      emporter: "emporter",
+      "à emporter": "emporter",
+      "a emporter": "emporter",
+      takeaway: "emporter",
+      "take away": "emporter",
+      "take-away": "emporter",
+      pickup: "emporter",
+      "pick up": "emporter",
+      "pick-up": "emporter",
+      livraison: "livraison",
+      delivery: "livraison",
+      delvery: "livraison",
+      deliver: "livraison",
+      livrer: "livraison",
+      "à livrer": "livraison",
+      "a livrer": "livraison",
+    };
+    const normalizedOrderType = orderTypeMap[(order_type || "").toLowerCase().trim()] || "emporter";
+
     // Rate limiting
     if (!checkRateLimit(restaurant_id)) {
       return NextResponse.json(
@@ -123,7 +144,7 @@ export async function POST(request: Request) {
         conversation_id: conversation_id || null,
         customer_name: customer_name || null,
         customer_phone: customer_phone || null,
-        order_type: order_type || null,
+        order_type: normalizedOrderType,
         items,
         special_instructions: special_instructions || null,
         pickup_time: pickup_time || null,
