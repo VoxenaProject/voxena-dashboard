@@ -6,10 +6,7 @@ import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ShoppingBag,
-  Clock,
   ChefHat,
-  CheckCircle2,
-  Truck,
   Search,
   Download,
   X,
@@ -44,11 +41,10 @@ export function OrderList({
 }) {
   const { orders, updateOrderStatus, newOrderIds, showBanner } = useRealtimeOrders(initialOrders, restaurantId, selectedDate);
   const [filter, setFilter] = useState("active");
+  const [typeFilter, setTypeFilter] = useState<"all" | "emporter" | "livraison">("all");
   const [search, setSearch] = useState("");
 
-  // Le hook realtime gère toutes les notifications (son, toast, banner, navigateur)
-
-  // Filtrer par statut + recherche texte
+  // Filtrer par statut + type + recherche texte
   const filtered = useMemo(() => {
     let result = orders;
 
@@ -59,6 +55,11 @@ export function OrderList({
       result = result.filter((o) => isTerminalStatus(o.status));
     } else {
       result = result.filter((o) => o.status === filter);
+    }
+
+    // Filtre type (emporter/livraison)
+    if (typeFilter !== "all") {
+      result = result.filter((o) => o.order_type === typeFilter);
     }
 
     // Recherche texte (nom, téléphone, numéro commande)
@@ -73,16 +74,15 @@ export function OrderList({
     }
 
     return result;
-  }, [orders, filter, search]);
+  }, [orders, filter, typeFilter, search]);
 
   // Stats
+  const activeCount = orders.filter((o) => !isTerminalStatus(o.status)).length;
+  const emporterCount = orders.filter((o) => o.order_type === "emporter" && !isTerminalStatus(o.status)).length;
+  const livraisonCount = orders.filter((o) => o.order_type === "livraison" && !isTerminalStatus(o.status)).length;
   const nouvelleCount = orders.filter((o) => o.status === "nouvelle").length;
   const enPrepCount = orders.filter((o) => o.status === "en_preparation").length;
   const preteCount = orders.filter((o) => o.status === "prete").length;
-  const livraisonCount = orders.filter(
-    (o) =>
-      o.order_type === "livraison" && !isTerminalStatus(o.status)
-  ).length;
 
   async function handleStatusChange(orderId: string, status: OrderStatus) {
     const oldOrder = orders.find((o) => o.id === orderId);
@@ -135,64 +135,81 @@ export function OrderList({
 
   return (
     <div>
-      {/* Banner nouvelle commande — plein écran */}
+      {/* Banner nouvelle commande — simple fade */}
       <AnimatePresence>
         {showBanner && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-green bg-gradient-to-r from-green/10 via-green/5 to-emerald-500/10 p-6 shadow-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="rounded-2xl border border-green/20 bg-green/[0.03] p-4 mb-6"
           >
-            {/* Cercles décoratifs animés */}
-            <motion.div
-              className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-green/20"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            />
-            <motion.div
-              className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-emerald-500/15"
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ repeat: Infinity, duration: 2.5 }}
-            />
-
-            <div className="relative flex items-center gap-4">
-              <motion.div
-                className="w-14 h-14 rounded-2xl bg-green/20 flex items-center justify-center"
-                animate={{ rotate: [0, -10, 10, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 0.5, repeatDelay: 2 }}
-              >
-                <span className="text-3xl">🔔</span>
-              </motion.div>
-              <div className="flex-1">
-                <p className="text-lg font-bold text-foreground">
-                  Nouvelle commande !
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {showBanner.customer_name || "Client"} —{" "}
-                  {showBanner.order_type === "livraison" ? "🚚 Livraison" : "🛍️ À emporter"}
-                  {showBanner.total_amount ? ` — ${Number(showBanner.total_amount).toFixed(0)}€` : ""}
-                </p>
-              </div>
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="px-4 py-2 bg-green text-white rounded-xl font-semibold text-sm shadow-md"
-              >
-                À traiter
-              </motion.div>
-            </div>
+            <p className="text-sm font-medium text-green">
+              Nouvelle commande — {showBanner.customer_name || "Client"} —{" "}
+              {showBanner.total_amount ? `${Number(showBanner.total_amount).toFixed(0)}€` : ""} —{" "}
+              {showBanner.order_type === "livraison" ? "Livraison" : "À emporter"}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Pipeline */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" data-tour="orders-pipeline">
-        <StatsChip icon={Clock} label="À accepter" count={nouvelleCount} color="text-green" bgColor="bg-green/6" active={nouvelleCount > 0} />
-        <StatsChip icon={ChefHat} label="En cuisine" count={enPrepCount} color="text-amber-600" bgColor="bg-amber-500/6" active={enPrepCount > 0} />
-        <StatsChip icon={CheckCircle2} label="Prêtes" count={preteCount} color="text-blue" bgColor="bg-blue/6" active={preteCount > 0} />
-        <StatsChip icon={Truck} label="Livraisons" count={livraisonCount} color="text-violet" bgColor="bg-violet/6" active={livraisonCount > 0} />
+      {/* Pipeline stats — pills colorées subtiles */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap" data-tour="orders-pipeline">
+        {activeCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-violet/[0.06] text-violet">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet" />
+            {activeCount} en cours
+          </span>
+        )}
+        {nouvelleCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green/[0.06] text-green">
+            <span className="w-1.5 h-1.5 rounded-full bg-green" />
+            {nouvelleCount} nouvelle{nouvelleCount > 1 ? "s" : ""}
+          </span>
+        )}
+        {enPrepCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/[0.06] text-amber-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            {enPrepCount} en cuisine
+          </span>
+        )}
+        {preteCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue/[0.06] text-blue">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue" />
+            {preteCount} prête{preteCount > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Toggle emporter / livraison */}
+      <div className="flex items-center gap-1 mb-5 p-1 bg-muted/50 rounded-xl w-fit">
+        <button
+          onClick={() => setTypeFilter("all")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            typeFilter === "all" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Toutes ({activeCount})
+        </button>
+        <button
+          onClick={() => setTypeFilter("emporter")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            typeFilter === "emporter" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-blue" />
+          À emporter ({emporterCount})
+        </button>
+        <button
+          onClick={() => setTypeFilter("livraison")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            typeFilter === "livraison" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-green" />
+          Livraison ({livraisonCount})
+        </button>
       </div>
 
       {/* Barre de recherche + filtres + export */}
@@ -203,7 +220,7 @@ export function OrderList({
             placeholder="Chercher par nom, téléphone, n° commande..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
+            className="pl-9 h-9 text-sm rounded-xl"
           />
           {search && (
             <button
@@ -224,7 +241,7 @@ export function OrderList({
               else count = orders.filter((o) => o.status === f.value).length;
               return (
                 <TabsTrigger key={f.value} value={f.value}>
-                  {f.label}
+                  <span className="text-xs">{f.label}</span>
                   <span className="ml-1 text-xs opacity-60">{count}</span>
                 </TabsTrigger>
               );
@@ -235,7 +252,7 @@ export function OrderList({
         <div className="flex items-center gap-2">
           <Link
             href="/kitchen"
-            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[min(var(--radius-md),12px)] border border-border bg-background text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-all"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-xl border border-border bg-background text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-all"
           >
             <ChefHat className="w-3.5 h-3.5" />
             Mode cuisine
@@ -275,24 +292,6 @@ export function OrderList({
             ))
           )}
         </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// ── Chip de stats ──
-
-function StatsChip({
-  icon: Icon, label, count, color, bgColor, active = false,
-}: {
-  icon: React.ElementType; label: string; count: number; color: string; bgColor: string; active?: boolean;
-}) {
-  return (
-    <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all ${active ? `${bgColor} border-current/10` : "bg-muted/30 border-transparent"}`}>
-      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? color : "text-muted-foreground/40"}`} />
-      <div className="min-w-0">
-        <span className={`text-lg font-bold tabular-nums block leading-none ${active ? color : "text-muted-foreground/40"}`}>{count}</span>
-        <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
       </div>
     </div>
   );

@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier auth — soit service role (agent), soit cookie (owner)
+    // Vérifier auth — soit service role (agent via api-key), soit cookie (owner)
     const apiKey = request.headers.get("x-api-key") || request.headers.get("X-Api-Key");
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     const isAgent = apiKey && apiKey === webhookSecret;

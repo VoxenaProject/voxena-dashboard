@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseOrderItems, calculateTotal } from "@/lib/elevenlabs/parse-order";
 import { sendOrderNotification } from "@/lib/email/send-notification";
+import { correctAddress } from "@/lib/utils/belgian-communes";
 
 // Rate limiter simple en mémoire : max 30 commandes/min par restaurant
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -163,6 +164,26 @@ export async function POST(request: Request) {
         }
       } catch (e) { console.warn("[orders/create] Erreur email:", e); }
     })();
+
+    // Correction d'adresse belge — fire-and-forget (ne bloque PAS la réponse)
+    if (delivery_address) {
+      (async () => {
+        try {
+          const result = correctAddress(delivery_address);
+          if (result.wasFixed) {
+            console.log(
+              `[orders/create] Adresse corrigée: "${delivery_address}" → "${result.corrected}" (commune: ${result.commune}, CP: ${result.postalCode})`
+            );
+            await supabase
+              .from("orders")
+              .update({ delivery_address: result.corrected })
+              .eq("id", order.id);
+          }
+        } catch (e) {
+          console.warn("[orders/create] Erreur correction adresse:", e);
+        }
+      })();
+    }
 
     return response;
   } catch (err) {

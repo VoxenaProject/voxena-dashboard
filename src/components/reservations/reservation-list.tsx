@@ -14,15 +14,10 @@ import {
   X,
   Plus,
   Phone,
-  MapPin,
   StickyNote,
-  UserCheck,
-  UserX,
-  Armchair,
-  Hourglass,
   UserPlus,
-  Star,
   AlertTriangle,
+  Hourglass,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -35,14 +30,14 @@ import { getZoneConfig } from "@/lib/floor-plan/zones";
 import type { Reservation, ReservationStatus, FloorTable, Customer } from "@/lib/supabase/types";
 import type { DaySummary } from "@/lib/dashboard/reservation-stats";
 
-// ── Helpers ──
+// -- Helpers --
 
 /** Formate un time_slot "HH:MM:SS" ou "HH:MM" en "HH:MM" pour l'affichage */
 function formatTime(timeSlot: string): string {
   return timeSlot.slice(0, 5);
 }
 
-// ── Configuration ──
+// -- Configuration --
 
 const statusFilters: { label: string; value: string }[] = [
   { label: "Toutes", value: "all" },
@@ -55,58 +50,37 @@ const statusFilters: { label: string; value: string }[] = [
 
 const statusConfig: Record<
   ReservationStatus,
-  { label: string; color: string; bg: string; dot: string; border: string; strikethrough?: boolean; dashed?: boolean }
+  { label: string; dot: string; strikethrough?: boolean; dashed?: boolean }
 > = {
   en_attente: {
     label: "En attente",
-    color: "text-amber-700",
-    bg: "bg-amber-50",
     dot: "bg-amber-500",
-    border: "border-amber-300",
   },
   confirmee: {
     label: "Confirmée",
-    color: "text-green-700",
-    bg: "bg-green-50",
-    dot: "bg-green-500",
-    border: "border-green-300",
+    dot: "bg-green",
   },
   assise: {
     label: "Assise",
-    color: "text-blue-700",
-    bg: "bg-blue-50",
-    dot: "bg-blue-500",
-    border: "border-blue-300",
+    dot: "bg-blue",
   },
   terminee: {
     label: "Terminée",
-    color: "text-gray-500",
-    bg: "bg-gray-50",
-    dot: "bg-gray-400",
-    border: "border-gray-200",
+    dot: "bg-muted-foreground/30",
   },
   annulee: {
     label: "Annulée",
-    color: "text-red-700",
-    bg: "bg-red-50",
     dot: "bg-red-500",
-    border: "border-red-300",
     strikethrough: true,
   },
   no_show: {
     label: "No-show",
-    color: "text-red-900",
-    bg: "bg-red-100",
     dot: "bg-red-700",
-    border: "border-red-400",
     strikethrough: true,
   },
   liste_attente: {
     label: "Liste d'attente",
-    color: "text-amber-800",
-    bg: "bg-amber-50/60",
-    dot: "bg-amber-600",
-    border: "border-amber-300",
+    dot: "bg-amber-400",
     dashed: true,
   },
 };
@@ -125,7 +99,7 @@ function resolveOccasion(occasion: string | null): { emoji: string; label: strin
   return { emoji: "\u{2728}", label: occasion };
 }
 
-// ── Type pour les props du hook realtime ──
+// -- Type pour les props du hook realtime --
 
 interface RealtimeState {
   reservations: Reservation[];
@@ -135,7 +109,7 @@ interface RealtimeState {
   showBanner: Reservation | null;
 }
 
-// ── Composant principal ──
+// -- Composant principal --
 
 interface ReservationListProps {
   realtimeState: RealtimeState;
@@ -330,60 +304,29 @@ export function ReservationList({
 
   return (
     <div>
-      {/* Bug 4 — Banner nouvelle réservation depuis le hook realtime */}
+      {/* Banner nouvelle réservation — design minimal */}
       <AnimatePresence>
         {showBanner && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="mb-6 relative overflow-hidden rounded-2xl border-2 border-violet bg-gradient-to-r from-violet/10 via-violet/5 to-blue/10 p-6 shadow-lg"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="rounded-2xl border border-violet/20 bg-violet/[0.03] p-4 mb-4"
           >
-            <motion.div
-              className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-violet/20"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            />
-            <motion.div
-              className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-blue/15"
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ repeat: Infinity, duration: 2.5 }}
-            />
-            <div className="relative flex items-center gap-4">
-              <motion.div
-                className="w-14 h-14 rounded-2xl bg-violet/20 flex items-center justify-center"
-                animate={{ rotate: [0, -10, 10, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 0.5, repeatDelay: 2 }}
-              >
-                <CalendarDays className="w-7 h-7 text-violet" />
-              </motion.div>
-              <div className="flex-1">
-                <p className="text-lg font-bold text-foreground">
-                  Nouvelle réservation !
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {showBanner.customer_name} — {showBanner.covers} couvert
-                  {showBanner.covers > 1 ? "s" : ""} — {showBanner.date} à {formatTime(showBanner.time_slot)}
-                </p>
-              </div>
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="px-4 py-2 bg-violet text-white rounded-xl font-semibold text-sm shadow-md"
-              >
-                À confirmer
-              </motion.div>
-            </div>
+            <p className="text-sm text-violet font-medium">
+              Nouvelle réservation — {showBanner.customer_name} — {showBanner.covers} couvert{showBanner.covers > 1 ? "s" : ""} — {showBanner.date} à {formatTime(showBanner.time_slot)}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Bande 7 jours compact */}
+      {/* Bande 7 jours — design simplifié */}
       {daySummaries && daySummaries.length > 0 && (
         <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
           {daySummaries.map((day) => {
             const isSelected = day.date === selectedDate;
+            const hasReservations = day.totalReservations > 0;
             return (
               <button
                 key={day.date}
@@ -396,45 +339,33 @@ export function ReservationList({
                   }
                 }}
                 className={`
-                  flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border text-center transition-all duration-200
-                  hover:shadow-sm cursor-pointer min-w-[72px]
+                  flex-shrink-0 flex flex-col items-center text-center px-3 py-2 rounded-xl transition-all duration-200
+                  cursor-pointer min-w-[64px]
                   ${isSelected
-                    ? "border-violet bg-violet/8 ring-1 ring-violet/20"
-                    : day.isToday
-                      ? "border-violet/30 bg-violet/[0.03]"
-                      : day.totalReservations > 0
-                        ? "border-blue/15 bg-blue/[0.03] hover:bg-blue/[0.06]"
-                        : "border-border bg-muted/10 hover:bg-muted/20"
+                    ? "bg-violet/[0.06] text-violet border border-violet/20"
+                    : hasReservations
+                      ? "bg-muted/50 border border-transparent"
+                      : "bg-transparent border border-transparent"
                   }
                 `}
               >
-                <span className={`text-[10px] font-medium uppercase tracking-wide ${
+                <span className={`text-[11px] font-medium ${
                   isSelected ? "text-violet" : "text-muted-foreground"
                 }`}>
                   {day.dayShort}
                 </span>
-                <span className={`text-sm font-bold leading-tight ${
+                <span className={`text-sm font-semibold ${
                   isSelected ? "text-violet" : "text-foreground"
                 }`}>
                   {day.dayNumber}
-                  {day.monthShort && (
-                    <span className="text-[9px] text-muted-foreground ml-0.5 lowercase font-medium">
-                      {day.monthShort}
-                    </span>
-                  )}
                 </span>
-                <span className={`text-xs font-semibold tabular-nums ${
-                  day.totalReservations > 0
-                    ? isSelected ? "text-violet" : "text-foreground"
+                <span className={`text-[11px] ${
+                  hasReservations
+                    ? isSelected ? "text-violet font-medium" : "text-foreground"
                     : "text-muted-foreground/40"
                 }`}>
-                  {day.totalReservations}
+                  {hasReservations ? day.totalReservations : "\u00B7"}
                 </span>
-                {day.pendingCount > 0 && (
-                  <span className="mt-0.5 inline-flex items-center px-1 py-[1px] rounded-full text-[9px] font-medium bg-amber-100 text-amber-700">
-                    {day.pendingCount} att.
-                  </span>
-                )}
               </button>
             );
           })}
@@ -466,7 +397,6 @@ export function ReservationList({
           color="text-green"
           bgColor="bg-green/6"
           active={confirmedCount > 0}
-          dotColor="bg-green-500"
         />
         <StatsChip
           icon={Clock}
@@ -483,7 +413,6 @@ export function ReservationList({
           color="text-amber-700"
           bgColor="bg-amber-100/50"
           active={waitlistCount > 0}
-          dotColor="bg-amber-600"
         />
         <StatsChip
           icon={AlertCircle}
@@ -592,42 +521,36 @@ export function ReservationList({
             </motion.div>
           ) : (
             <>
-              {/* Bug 1 — Section prioritaire : réservations en attente en haut */}
+              {/* Section prioritaire : réservations en attente */}
               {pendingReservations.length > 0 && filter === "all" && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-4"
                 >
-                  {/* Titre section avec point pulsant + bouton tout confirmer */}
+                  {/* Titre section avec point statique + bouton tout confirmer */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                      </span>
-                      <h3 className="text-sm font-semibold text-amber-800">
-                        Nouvelles réservations à confirmer
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      <h3 className="text-sm font-semibold text-foreground">
+                        À confirmer
                       </h3>
-                      <span className="text-xs text-amber-600 font-medium bg-amber-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-muted-foreground font-medium bg-muted/60 px-2 py-0.5 rounded-full">
                         {pendingReservations.length}
                       </span>
                     </div>
                     {pendingReservations.length > 1 && (
-                      <Button
-                        size="xs"
-                        className="bg-green hover:bg-green/90 text-white gap-1"
+                      <button
+                        className="text-xs font-medium text-violet hover:text-violet/80 transition-colors disabled:opacity-50"
                         onClick={handleConfirmAllPending}
                         disabled={confirmingAll}
                       >
-                        <CheckCircle2 className="w-3 h-3" />
                         {confirmingAll ? "Confirmation..." : "Tout confirmer"}
-                      </Button>
+                      </button>
                     )}
                   </div>
 
-                  {/* Fond ambré subtil */}
-                  <div className="rounded-xl bg-gradient-to-b from-amber-50/80 to-amber-50/30 border border-amber-200/60 p-3 space-y-2">
+                  <div className="space-y-2">
                     <AnimatePresence mode="popLayout">
                       {pendingReservations.map((resa, i) => (
                         <ReservationCard
@@ -712,18 +635,7 @@ export function ReservationList({
   );
 }
 
-// ── Gradient top border par statut ──
-const statusGradients: Record<ReservationStatus, string> = {
-  en_attente: "from-amber-400 via-amber-300 to-amber-400",
-  confirmee: "from-green-500 via-green-400 to-green-500",
-  assise: "from-blue-500 via-blue-400 to-blue-500",
-  terminee: "from-gray-300 via-gray-200 to-gray-300",
-  annulee: "from-red-400 via-red-300 to-red-400",
-  no_show: "from-red-600 via-red-500 to-red-600",
-  liste_attente: "from-amber-500 via-amber-400 to-amber-500",
-};
-
-// ── Carte de réservation — Design premium ──
+// -- Carte de réservation — Design minimal Apple-quality --
 
 function ReservationCard({
   reservation,
@@ -750,28 +662,20 @@ function ReservationCard({
   const preferences = reservation.preferences || [];
   const displayNotes = reservation.notes?.trim();
   const timeDisplay = formatTime(reservation.time_slot);
-  const gradient = statusGradients[reservation.status] || statusGradients.en_attente;
 
   // Historique client — match par téléphone
   const customer = reservation.customer_phone
     ? customers.find((c) => c.phone === reservation.customer_phone)
     : undefined;
-  const isVip = customer?.tags?.includes("vip");
-  const isFidele = customer?.tags?.includes("habituee") || customer?.tags?.includes("habituée");
   const isRecidiviste = customer?.tags?.includes("recidiviste") || customer?.tags?.includes("récidiviste");
   const customerNoShowTags = customer?.tags?.filter((t) => t === "no_show").length || 0;
-  // Compter les no-shows aussi via le tag récidiviste (au moins 2 no-shows)
   const hasNoShowHistory = isRecidiviste || customerNoShowTags > 0;
 
-  // Tint subtil pour la colonne heure selon la zone
-  const zoneTintMap: Record<string, string> = {
-    salle: "rgba(96, 165, 250, 0.04)",
-    terrasse: "rgba(52, 211, 153, 0.04)",
-    bar: "rgba(251, 191, 36, 0.04)",
-    salle_privee: "rgba(139, 92, 246, 0.04)",
-    vip: "rgba(234, 179, 8, 0.04)",
-  };
-  const timeColumnTint = table?.zone ? zoneTintMap[table.zone] : undefined;
+  // Zone label
+  const zoneLabel = table?.zone ? getZoneConfig(table.zone).label : null;
+
+  // Bottom row: has content?
+  const hasBottomRow = occasion || (preferences.length > 0) || displayNotes || reservation.status === "en_attente" || reservation.status === "confirmee" || reservation.status === "assise";
 
   return (
     <motion.div
@@ -783,221 +687,146 @@ function ReservationCard({
         transition: { delay: index * 0.03, type: "spring", damping: 25, stiffness: 300 },
       }}
       exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-      className={`group relative rounded-xl border bg-card transition-all duration-200 cursor-pointer overflow-hidden
-        ${isPending ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15),0_2px_8px_rgba(245,158,11,0.08)]" : "shadow-card border-border"}
-        ${isNew ? "ring-2 ring-violet/40 shadow-[0_0_20px_rgba(66,55,196,0.12)]" : ""}
-        hover:shadow-card-hover hover:-translate-y-[1px]
+      className={`
+        border rounded-2xl p-5 transition-shadow duration-200 cursor-pointer
+        hover:shadow-card-hover
+        ${isNew ? "ring-1 ring-violet/30" : ""}
+        ${isPending ? "border-amber-200" : "border-border"}
       `}
-      style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
       onClick={() => onEdit(reservation)}
     >
-      {/* Gradient top border subtil (2px) */}
-      <div className={`h-[2px] bg-gradient-to-r ${gradient} opacity-60`} />
-
-      {/* Barre d'accentuation latérale pour les réservations en attente */}
-      {isPending && (
-        <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-amber-400" />
-      )}
-
-      <div className="flex items-stretch p-4">
-        {/* Colonne gauche : heure en gros + couverts — tint subtil selon la zone */}
-        <div
-          className="flex-shrink-0 flex flex-col items-center justify-center pr-4 border-r border-border/50 min-w-[72px] rounded-l-lg"
-          style={timeColumnTint ? { backgroundColor: timeColumnTint } : undefined}
-        >
-          <span className="font-mono text-2xl font-bold text-foreground leading-none tracking-tight">
-            {timeDisplay}
+      {/* Row 1 — heure, couverts, zone */}
+      <div className="flex items-center">
+        <span className="text-sm font-mono font-semibold">
+          {timeDisplay}
+        </span>
+        <span className="text-xs text-muted-foreground ml-4 flex items-center gap-1">
+          <Users className="w-3.5 h-3.5" />
+          {reservation.covers} couvert{reservation.covers > 1 ? "s" : ""}
+        </span>
+        {zoneLabel && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {zoneLabel}
           </span>
-          <div className="flex items-center gap-1 mt-1.5">
-            <Users className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground font-medium">
-              {reservation.covers} couvert{reservation.covers > 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
+        )}
+        {!zoneLabel && table && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {table.name}
+          </span>
+        )}
+      </div>
 
-        {/* Colonne milieu : informations principales */}
-        <div className="flex-1 min-w-0 pl-4 space-y-2">
-          {/* Ligne 1 : nom + badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Nom client — text-base au lieu de text-sm */}
-            <span className={`font-semibold text-base text-foreground truncate ${status.strikethrough ? "line-through opacity-60" : ""}`}>
-              {reservation.customer_name}
-            </span>
+      {/* Row 2 — nom + statut */}
+      <div className="mt-3 flex justify-between items-center">
+        <span className={`text-base font-medium ${status.strikethrough ? "line-through opacity-60" : ""}`}>
+          {reservation.customer_name}
+        </span>
+        <span className="flex items-center">
+          <span className={`w-2 h-2 rounded-full ${status.dot}`} />
+          <span className="text-xs text-muted-foreground ml-2">
+            {status.label}
+          </span>
+        </span>
+      </div>
 
-            {/* Étoile VIP avec shimmer doré */}
-            {isVip && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 badge-gold-shimmer">
-                <Star className="w-3 h-3 text-amber-500 fill-amber-400 flex-shrink-0" />
-                VIP
-              </span>
-            )}
+      {/* Row 3 — téléphone + historique client */}
+      <div className="mt-1 flex items-center gap-3">
+        {reservation.customer_phone && (
+          <span className="text-xs text-muted-foreground/60 flex items-center gap-1">
+            <Phone className="w-3 h-3" />
+            {reservation.customer_phone}
+          </span>
+        )}
+        {customer && customer.visit_count > 1 && (
+          <span className="text-xs text-muted-foreground/50">
+            {customer.visit_count}ème visite
+          </span>
+        )}
+        {reservation.status === "no_show" && hasNoShowHistory && (
+          <span className="text-xs text-red-600/70 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Récidiviste
+          </span>
+        )}
+      </div>
 
-            {/* Badge statut avec glass effect */}
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium backdrop-blur-sm ${status.color} ${status.dashed ? "border border-dashed border-amber-400" : ""}`}
-              style={{
-                backgroundColor: `color-mix(in srgb, ${
-                  reservation.status === "en_attente" ? "#f59e0b" :
-                  reservation.status === "confirmee" ? "#22c55e" :
-                  reservation.status === "assise" ? "#3b82f6" :
-                  reservation.status === "annulee" || reservation.status === "no_show" ? "#ef4444" :
-                  "#6b7280"
-                } 8%, transparent)`,
-              }}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${
-                isNew || reservation.status === "en_attente" || reservation.status === "assise" ? "pulse-dot-live" : ""
-              }`} />
-              {status.label}
-            </span>
-
-            {/* Badge occasion */}
+      {/* Row 4 — occasion, préférences, notes, actions */}
+      {hasBottomRow && (
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
             {occasion && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet/8 text-violet border border-violet/15">
+              <span className="text-xs text-muted-foreground">
                 {occasion.emoji} {occasion.label}
               </span>
             )}
-
-            {/* Badge client fidèle avec violet glow */}
-            {isFidele && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet/10 text-violet border border-violet/20 badge-violet-glow">
-                Client fidèle
+            {preferences.length > 0 && (
+              <span className="text-xs text-muted-foreground/50 truncate">
+                {preferences.join(", ")}
               </span>
             )}
-
-            {/* Badge visite */}
-            {customer && customer.visit_count > 1 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue/8 text-blue/80">
-                {customer.visit_count}ème visite
-              </span>
-            )}
-
-            {/* Badge no-show récidiviste */}
-            {reservation.status === "no_show" && hasNoShowHistory && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
-                <AlertTriangle className="w-3 h-3" />
-                Récidiviste
+            {displayNotes && (
+              <span className="text-xs text-muted-foreground/50 italic truncate max-w-[200px] flex items-center gap-1">
+                <StickyNote className="w-3 h-3 flex-shrink-0" />
+                {displayNotes}
               </span>
             )}
           </div>
 
-          {/* Sous-ligne : total dépensé (subtil) */}
-          {customer && customer.total_spent > 0 && (
-            <span className="text-[10px] text-muted-foreground/60">
-              {customer.total_spent.toFixed(0)}€ dépensés
-            </span>
-          )}
-
-          {/* Ligne 2 : téléphone, table, zone */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {reservation.customer_phone && (
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                {reservation.customer_phone}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {table ? table.name : "Pas de table"}
-              {table && (() => {
-                const zc = getZoneConfig(table.zone || "salle");
-                return (
-                  <span className={`inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${zc.color}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${zc.dotColor}`} />
-                    {zc.label}
-                  </span>
-                );
-              })()}
-            </span>
-          </div>
-
-          {/* Ligne 3 : préférences + notes */}
-          {(preferences.length > 0 || displayNotes) && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {preferences.map((pref) => (
-                <span
-                  key={pref}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue/8 text-blue border border-blue/15"
+          {/* Actions — text buttons */}
+          <div
+            className="flex items-center gap-3 flex-shrink-0 ml-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {reservation.status === "en_attente" && (
+              <>
+                <button
+                  className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                  onClick={() => onStatusChange(reservation.id, "confirmee")}
                 >
-                  {pref}
-                </span>
-              ))}
-              {displayNotes && (
-                <span className="text-xs text-muted-foreground/70 italic flex items-center gap-1 truncate max-w-[240px]">
-                  <StickyNote className="w-3 h-3 flex-shrink-0" />
-                  {displayNotes}
-                </span>
-              )}
-            </div>
-          )}
+                  Confirmer
+                </button>
+                <button
+                  className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
+                  onClick={() => onStatusChange(reservation.id, "annulee")}
+                >
+                  Annuler
+                </button>
+              </>
+            )}
+
+            {reservation.status === "confirmee" && (
+              <>
+                <button
+                  className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                  onClick={() => onStatusChange(reservation.id, "assise")}
+                >
+                  Asseoir &rarr;
+                </button>
+                <button
+                  className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
+                  onClick={() => onStatusChange(reservation.id, "annulee")}
+                >
+                  Annuler
+                </button>
+              </>
+            )}
+
+            {reservation.status === "assise" && (
+              <button
+                className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                onClick={() => onStatusChange(reservation.id, "terminee")}
+              >
+                Terminer
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* Colonne droite : actions rapides avec hover scale */}
-        <div
-          className="flex items-center gap-1.5 flex-shrink-0 pl-3 opacity-80 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {reservation.status === "en_attente" && (
-            <>
-              <Button
-                size="xs"
-                className="bg-green hover:bg-green/90 text-white gap-1 btn-lift"
-                onClick={() => onStatusChange(reservation.id, "confirmee")}
-              >
-                <UserCheck className="w-3 h-3" />
-                Confirmer
-              </Button>
-              <Button
-                size="xs"
-                variant="destructive"
-                className="gap-1 btn-lift"
-                onClick={() => onStatusChange(reservation.id, "annulee")}
-              >
-                <UserX className="w-3 h-3" />
-              </Button>
-            </>
-          )}
-
-          {reservation.status === "confirmee" && (
-            <>
-              <Button
-                size="xs"
-                className="bg-blue hover:bg-blue/90 text-white gap-1 btn-lift"
-                onClick={() => onStatusChange(reservation.id, "assise")}
-              >
-                <Armchair className="w-3 h-3" />
-                Asseoir
-              </Button>
-              <Button
-                size="xs"
-                variant="destructive"
-                className="gap-1 btn-lift"
-                onClick={() => onStatusChange(reservation.id, "annulee")}
-              >
-                <UserX className="w-3 h-3" />
-              </Button>
-            </>
-          )}
-
-          {reservation.status === "assise" && (
-            <Button
-              size="xs"
-              variant="secondary"
-              className="gap-1 btn-lift"
-              onClick={() => onStatusChange(reservation.id, "terminee")}
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              Terminer
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
     </motion.div>
   );
 }
 
-// ── Chip de stats ──
+// -- Chip de stats --
 
 function StatsChip({
   icon: Icon,
@@ -1006,7 +835,6 @@ function StatsChip({
   color,
   bgColor,
   active = false,
-  dotColor,
 }: {
   icon: React.ElementType;
   label: string;
@@ -1014,7 +842,6 @@ function StatsChip({
   color: string;
   bgColor: string;
   active?: boolean;
-  dotColor?: string;
 }) {
   return (
     <div
@@ -1024,18 +851,11 @@ function StatsChip({
           : "bg-muted/30 border-transparent"
       }`}
     >
-      <div className="relative">
-        <Icon
-          className={`w-4 h-4 flex-shrink-0 ${
-            active ? color : "text-muted-foreground/40"
-          }`}
-        />
-        {dotColor && active && (
-          <span
-            className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${dotColor}`}
-          />
-        )}
-      </div>
+      <Icon
+        className={`w-4 h-4 flex-shrink-0 ${
+          active ? color : "text-muted-foreground/40"
+        }`}
+      />
       <div className="min-w-0">
         <span
           className={`text-lg font-bold tabular-nums block leading-none ${

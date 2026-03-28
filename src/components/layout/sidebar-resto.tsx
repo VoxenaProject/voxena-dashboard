@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -27,9 +26,9 @@ import type { SubscriptionPlan } from "@/lib/supabase/types";
 
 // Labels lisibles pour les plans
 const planLabels: Record<SubscriptionPlan, string> = {
-  orders: "Orders",
-  tables: "Tables",
-  pro: "Pro",
+  orders: "Plan Orders",
+  tables: "Plan Tables",
+  pro: "Plan Pro",
 };
 
 // Définition des items de navigation avec les plans requis
@@ -42,10 +41,6 @@ const navItems = [
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] as SubscriptionPlan[] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
 ];
-
-// Items principaux vs paramètres (séparateur entre les deux groupes)
-const mainNavItems = navItems.filter((item) => item.href !== "/settings");
-const settingsNavItems = navItems.filter((item) => item.href === "/settings");
 
 // Composant pour les items de navigation verrouillés avec tooltip
 function LockedNavItem({
@@ -80,22 +75,20 @@ function LockedNavItem({
         onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-200 w-full opacity-30 cursor-not-allowed ${
+        className={`flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-medium transition-colors duration-150 w-full text-white/25 cursor-not-allowed ${
           collapsed ? "justify-center" : ""
-        } text-white/40`}
+        }`}
       >
         <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
         {!collapsed && (
           <span className="flex items-center gap-2">
             {item.label}
-            <span className="gradient-gold">
-              <Crown className="w-3.5 h-3.5" />
-            </span>
+            <Crown className="w-3 h-3 text-amber-500/50" />
           </span>
         )}
         {collapsed && (
-          <span className="gradient-gold absolute -top-0.5 -right-0.5">
-            <Crown className="w-3 h-3" />
+          <span className="absolute -top-0.5 -right-0.5">
+            <Crown className="w-3 h-3 text-amber-500/50" />
           </span>
         )}
       </button>
@@ -105,9 +98,7 @@ function LockedNavItem({
         <div
           className="absolute left-full top-1/2 -translate-y-1/2 ml-2.5 z-50 pointer-events-none"
         >
-          {/* Flèche */}
           <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-[#1a1a2e] rotate-45" />
-          {/* Contenu */}
           <div className="relative bg-[#1a1a2e] text-white text-xs font-medium px-3 py-2 rounded-lg shadow-lg max-w-[200px] whitespace-nowrap">
             Disponible avec Voxena Pro
           </div>
@@ -144,7 +135,7 @@ function SidebarContent({
     setUpsellOpen(true);
   }
 
-  // Rendu d'un groupe de nav items
+  // Rendu des items de navigation
   function renderNavItems(items: typeof navItems) {
     return items.map((item) => {
       const isAvailable = item.plans.includes(plan);
@@ -153,7 +144,7 @@ function SidebarContent({
         (pathname === item.href ||
           (item.href !== "/" && pathname.startsWith(item.href)));
 
-      // Item verrouillé — pas de navigation, affichage grisé + tooltip
+      // Item verrouillé
       if (!isAvailable) {
         return (
           <LockedNavItem
@@ -165,43 +156,21 @@ function SidebarContent({
         );
       }
 
-      // Item disponible — navigation normale
+      // Item disponible
       return (
         <Link
           key={item.href}
           href={item.href}
-          className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-200 ${
+          className={`flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-medium transition-colors duration-150 ${
             collapsed ? "justify-center" : ""
           } ${
             isActive
               ? "text-white bg-white/[0.08]"
-              : "text-white/50 hover:text-white/80 hover:bg-white/[0.06] hover:backdrop-blur-sm"
+              : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
           }`}
         >
-          {/* Barre d'accent active à gauche */}
-          {isActive && (
-            <motion.div
-              layoutId="sidebar-active-bar"
-              className="sidebar-active-bar"
-              transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-            />
-          )}
-          {/* Fond actif animé */}
-          {isActive && (
-            <motion.div
-              layoutId="sidebar-active"
-              className="absolute inset-0 rounded-xl bg-white/[0.08]"
-              transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-            />
-          )}
-          <item.icon
-            className={`w-[18px] h-[18px] flex-shrink-0 relative z-10 transition-all duration-200 ${
-              isActive ? "text-violet drop-shadow-[0_0_8px_rgba(66,55,196,0.6)]" : ""
-            }`}
-          />
-          {!collapsed && (
-            <span className="relative z-10">{item.label}</span>
-          )}
+          <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+          {!collapsed && <span>{item.label}</span>}
         </Link>
       );
     });
@@ -210,16 +179,16 @@ function SidebarContent({
   return (
     <>
       <aside
-        className={`noise-bg bg-gradient-to-b from-navy-deep to-navy text-white/50 flex flex-col min-h-screen transition-all duration-300 ${
+        className={`bg-[#0E1333] text-white/50 flex flex-col min-h-screen transition-all duration-300 ${
           collapsed ? "w-[68px]" : "w-64"
         }`}
       >
-        {/* Logo — plus d'espace vertical */}
-        <div className="relative z-10 py-6 px-5 flex items-center justify-between">
+        {/* Logo */}
+        <div className="py-8 px-5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <svg
-              width="32"
-              height="32"
+              width="36"
+              height="36"
               viewBox="543 -20 486 570"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -245,55 +214,34 @@ function SidebarContent({
               />
             </svg>
             {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="font-heading text-base font-bold text-white tracking-tight logo-glow"
-              >
+              <span className="text-lg font-semibold tracking-widest text-white/90">
                 VOXENA
-              </motion.span>
+              </span>
             )}
           </Link>
           {onToggle && !collapsed && (
             <button
               onClick={onToggle}
-              className="text-white/30 hover:text-white/60 transition-all duration-200 hidden lg:block"
+              className="text-white/30 hover:text-white/60 transition-colors duration-150 hidden lg:block"
             >
               <PanelLeftClose className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Section label */}
-        {!collapsed && (
-          <div className="relative z-10 px-6 mb-2">
-            <span className="text-[10px] uppercase tracking-widest text-white/30 font-medium">
-              Navigation
-            </span>
-          </div>
-        )}
-
         {/* Navigation principale */}
-        <nav className="relative z-10 flex-1 px-3 mt-1" data-tour="sidebar-nav">
-          <div className="space-y-1">
-            {renderNavItems(mainNavItems)}
-          </div>
-
-          {/* Séparateur entre les groupes */}
-          <div className="my-4 mx-2 border-t border-white/[0.06]" />
-
-          {/* Paramètres */}
-          <div className="space-y-1">
-            {renderNavItems(settingsNavItems)}
+        <nav className="flex-1 px-3 mt-8" data-tour="sidebar-nav">
+          <div className="space-y-0.5">
+            {renderNavItems(navItems)}
           </div>
         </nav>
 
         {/* Collapse toggle (desktop, collapsed state) */}
         {onToggle && collapsed && (
-          <div className="relative z-10 px-3 mb-2">
+          <div className="px-3 mb-2">
             <button
               onClick={onToggle}
-              className="w-full flex items-center justify-center py-2.5 rounded-xl text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all duration-200"
+              className="w-full flex items-center justify-center py-3 rounded-xl text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors duration-150"
             >
               <PanelLeft className="w-[18px] h-[18px]" />
             </button>
@@ -301,19 +249,17 @@ function SidebarContent({
         )}
 
         {/* Plan badge + Déconnexion */}
-        <div className="relative z-10 p-3 border-t border-white/[0.06]">
-          {/* Badge du plan actuel */}
+        <div className="pb-6 px-5">
           {!collapsed && (
-            <div className="px-3 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-violet/20 text-violet border border-violet/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet" />
+            <div className="mb-3">
+              <span className="text-[11px] text-white/25 font-normal">
                 {planLabels[plan]}
               </span>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium tracking-wide text-white/40 hover:text-white/80 hover:bg-white/[0.06] w-full transition-all duration-200 opacity-60 hover:opacity-100 ${
+            className={`flex items-center gap-3 py-2.5 text-sm text-white/25 hover:text-white/50 w-full transition-colors duration-150 ${
               collapsed ? "justify-center" : ""
             }`}
           >
@@ -340,10 +286,10 @@ export function SidebarResto({ plan = "orders" }: { plan?: SubscriptionPlan }) {
   if (isMobile) {
     return (
       <Sheet>
-        <SheetTrigger className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-navy-deep text-white/80 shadow-lg lg:hidden">
+        <SheetTrigger className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-[#0E1333] text-white/80 shadow-lg lg:hidden">
           <Menu className="w-5 h-5" />
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 bg-navy-deep border-none">
+        <SheetContent side="left" className="p-0 w-64 bg-[#0E1333] border-none">
           <SidebarContent collapsed={false} plan={plan} />
         </SheetContent>
       </Sheet>
