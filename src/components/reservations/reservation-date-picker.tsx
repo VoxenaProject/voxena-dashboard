@@ -1,16 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react";
 
 interface ReservationDatePickerProps {
   currentDate: string; // YYYY-MM-DD
-  basePath?: string; // "/reservations" ou "/orders"
+  basePath?: string; // "/reservations", "/orders", ou "/"
 }
 
-export function ReservationDatePicker({ currentDate, basePath = "/reservations" }: ReservationDatePickerProps) {
+/**
+ * Sélecteur de date partagé — style Apple Calendar.
+ * Utilisé sur le dashboard (/), les commandes (/orders) et les réservations (/reservations).
+ */
+export function ReservationDatePicker({
+  currentDate,
+  basePath = "/reservations",
+}: ReservationDatePickerProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const today = new Date().toISOString().split("T")[0];
@@ -30,47 +36,71 @@ export function ReservationDatePicker({ currentDate, basePath = "/reservations" 
     goToDate(d.toISOString().split("T")[0]);
   }
 
-  // Formater la date en français
+  // Formater la date en français — "Ven 28 mars"
   const dateObj = new Date(currentDate + "T12:00:00");
   const formatted = dateObj.toLocaleDateString("fr-BE", {
     weekday: "short",
     day: "numeric",
     month: "short",
   });
+  // Capitaliser la première lettre du jour
+  const displayDate =
+    formatted.charAt(0).toUpperCase() + formatted.slice(1);
 
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
-        <ChevronLeft className="w-4 h-4" />
-      </Button>
-
-      {/* Zone cliquable qui ouvre le date picker natif */}
+    <div className="p-1 bg-muted/40 rounded-2xl inline-flex items-center gap-0.5">
+      {/* Flèche gauche */}
       <button
-        onClick={() => inputRef.current?.showPicker()}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted text-sm font-medium min-w-[130px] justify-center transition-colors cursor-pointer"
+        onClick={() => navigate(-1)}
+        className="w-8 h-8 rounded-xl hover:bg-background flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors"
+        aria-label="Jour précédent"
       >
-        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-        {isToday ? "Aujourd'hui" : formatted}
+        <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {/* Input date caché */}
+      {/* Affichage de la date — cliquable pour ouvrir le date picker natif */}
+      <button
+        onClick={() => inputRef.current?.showPicker()}
+        className="px-4 py-1.5 rounded-xl text-sm hover:bg-background transition-colors min-w-[140px] text-center cursor-pointer"
+      >
+        {isToday ? (
+          <span className="font-semibold text-foreground">
+            Aujourd&apos;hui
+          </span>
+        ) : (
+          <span className="font-medium text-foreground">{displayDate}</span>
+        )}
+      </button>
+
+      {/* Input date caché pour le picker natif */}
       <input
         ref={inputRef}
         type="date"
         value={currentDate}
-        onChange={(e) => goToDate(e.target.value)}
+        onChange={(e) => {
+          if (e.target.value) goToDate(e.target.value);
+        }}
         className="sr-only"
         tabIndex={-1}
       />
 
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(1)}>
+      {/* Flèche droite */}
+      <button
+        onClick={() => navigate(1)}
+        className="w-8 h-8 rounded-xl hover:bg-background flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors"
+        aria-label="Jour suivant"
+      >
         <ChevronRight className="w-4 h-4" />
-      </Button>
+      </button>
 
+      {/* Bouton "Aujourd'hui" — affiché uniquement quand on n'est pas sur aujourd'hui */}
       {!isToday && (
-        <Button variant="outline" size="sm" className="ml-1 text-xs h-8" onClick={() => goToDate(today)}>
+        <button
+          onClick={() => goToDate(today)}
+          className="text-xs text-violet font-medium ml-1 px-2 py-1 rounded-xl hover:bg-background transition-colors"
+        >
           Aujourd&apos;hui
-        </Button>
+        </button>
       )}
     </div>
   );

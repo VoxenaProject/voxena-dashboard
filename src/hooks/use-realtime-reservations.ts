@@ -12,11 +12,10 @@ import type { Reservation, ReservationStatus } from "@/lib/supabase/types";
 function notifyNewReservation(resa: Reservation) {
   const timeShort = resa.time_slot?.slice(0, 5) || resa.time_slot;
 
-  // Son
+  // Son — une seule fois
   try {
     const audio = new Audio("/sounds/new-order.mp3");
     audio.play().catch(() => {});
-    setTimeout(() => audio.play().catch(() => {}), 1500);
   } catch {}
 
   // Toast
@@ -53,6 +52,7 @@ export function useRealtimeReservations(
   const [newReservationIds, setNewReservationIds] = useState<Set<string>>(new Set());
   // Banner state exposé pour le composant parent
   const [showBanner, setShowBanner] = useState<Reservation | null>(null);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
 
   // Quand les données serveur changent (changement de date), reset sans notifier
   useEffect(() => {
@@ -81,10 +81,13 @@ export function useRealtimeReservations(
           if (!knownIdsRef.current.has(newResa.id)) {
             knownIdsRef.current.add(newResa.id);
             setReservations((prev) => [newResa, ...prev]);
-            // Notification — c'est une VRAIE nouvelle résa (realtime INSERT)
-            notifyNewReservation(newResa);
-            setShowBanner(newResa);
-            setTimeout(() => setShowBanner(null), 3000);
+            // Notification — une seule fois par ID (évite doublon realtime+polling)
+            if (!notifiedIdsRef.current.has(newResa.id)) {
+              notifiedIdsRef.current.add(newResa.id);
+              notifyNewReservation(newResa);
+              setShowBanner(newResa);
+              setTimeout(() => setShowBanner(null), 3000);
+            }
             setNewReservationIds((prev) => new Set(prev).add(newResa.id));
             setTimeout(() => {
               setNewReservationIds((prev) => {
@@ -144,10 +147,14 @@ export function useRealtimeReservations(
         if (newResas.length > 0) {
           newResas.forEach((r) => knownIdsRef.current.add(r.id));
           setReservations((prev) => [...newResas, ...prev]);
-          // Notification pour la première nouvelle résa (polling)
-          notifyNewReservation(newResas[0]);
-          setShowBanner(newResas[0]);
-          setTimeout(() => setShowBanner(null), 3000);
+          // Notification — une seule fois par ID
+          const unnotified = newResas.filter((r) => !notifiedIdsRef.current.has(r.id));
+          if (unnotified.length > 0) {
+            notifiedIdsRef.current.add(unnotified[0].id);
+            notifyNewReservation(unnotified[0]);
+            setShowBanner(unnotified[0]);
+            setTimeout(() => setShowBanner(null), 3000);
+          }
         }
         // Mettre à jour les statuts des réservations existantes
         setReservations((prev) =>

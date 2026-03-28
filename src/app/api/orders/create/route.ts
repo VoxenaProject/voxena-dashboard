@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { parseOrderItems, calculateTotal } from "@/lib/elevenlabs/parse-order";
 import { sendOrderNotification } from "@/lib/email/send-notification";
 import { correctAddress } from "@/lib/utils/belgian-communes";
+import { checkRestaurantOpen } from "@/lib/utils/day-mapping";
 
 // Rate limiter simple en mémoire : max 30 commandes/min par restaurant
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -73,13 +74,33 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
-    // Récupérer les prix du menu en parallèle avec le rate limit check
-    const { data: menuItems } = await supabase
-      .from("menu_items")
-      .select("name, price")
-      .eq("restaurant_id", restaurant_id)
-      .eq("is_available", true)
-      .limit(200);
+    // Récupérer menu + horaires d'ouverture en parallèle
+    const [{ data: menuItems }, { data: restaurantData }] = await Promise.all([
+      supabase
+        .from("menu_items")
+        .select("name, price")
+        .eq("restaurant_id", restaurant_id)
+        .eq("is_available", true)
+        .limit(200),
+      supabase
+        .from("restaurants")
+        .select("opening_hours")
+        .eq("id", restaurant_id)
+        .single(),
+    ]);
+
+    // Vérifier si le restaurant est actuellement ouvert
+    const hoursCheck = checkRestaurantOpen(restaurantData?.opening_hours);
+    if (!hoursCheck.isOpen) {
+      return NextResponse.json(
+        {
+          error: "Le restaurant est actuellement fermé",
+          closed: true,
+          reopens: hoursCheck.reopens || "prochainement",
+        },
+        { status: 400 }
+      );
+    }
 
     if (menuItems && menuItems.length > 0) {
       for (const item of items) {
@@ -119,11 +140,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Formater le total avec virgule pour l'affichage français
+    const totalFormatted = (total_amount ?? 0).toFixed(2).replace(".", ",");
+
+    // Note si le restaurant ferme bientôt
+    const closingSoonNote = hoursCheck.closingSoon
+      ? ` (attention : le restaurant ferme dans ${hoursCheck.minutesUntilClose} minutes)`
+      : "";
+
     // Répondre IMMÉDIATEMENT à l'agent — tout le reste est asynchrone
     const response = NextResponse.json({
       success: true,
       order_id: order.id,
-      message: `Commande #${order.id.slice(0, 8)} créée avec succès.`,
+      total_amount,
+      message: `Commande #${order.id.slice(0, 8)} créée — Total: ${totalFormatted}€${closingSoonNote}`,
     });
 
     // Logs, upsert client et email en arrière-plan (ne bloquent PAS la réponse)

@@ -53,6 +53,7 @@ export function useRealtimeOrders(
   const knownIdsRef = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)));
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
   const [showBanner, setShowBanner] = useState<Order | null>(null);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
 
   // Quand les données serveur changent (changement de date), reset sans notifier
   useEffect(() => {
@@ -81,10 +82,13 @@ export function useRealtimeOrders(
           if (!knownIdsRef.current.has(newOrder.id)) {
             knownIdsRef.current.add(newOrder.id);
             setOrders((prev) => [newOrder, ...prev]);
-            // Notification — VRAIE nouvelle commande (realtime INSERT)
-            notifyNewOrder(newOrder);
-            setShowBanner(newOrder);
-            setTimeout(() => setShowBanner(null), 6000);
+            // Notification — une seule fois par ID (évite doublon realtime+polling)
+            if (!notifiedIdsRef.current.has(newOrder.id)) {
+              notifiedIdsRef.current.add(newOrder.id);
+              notifyNewOrder(newOrder);
+              setShowBanner(newOrder);
+              setTimeout(() => setShowBanner(null), 6000);
+            }
             setNewOrderIds((prev) => new Set(prev).add(newOrder.id));
             setTimeout(() => {
               setNewOrderIds((prev) => {
@@ -134,10 +138,14 @@ export function useRealtimeOrders(
         if (newOrders.length > 0) {
           newOrders.forEach((o) => knownIdsRef.current.add(o.id));
           setOrders((prev) => [...newOrders, ...prev]);
-          // Notification pour la première nouvelle commande (polling)
-          notifyNewOrder(newOrders[0]);
-          setShowBanner(newOrders[0]);
-          setTimeout(() => setShowBanner(null), 6000);
+          // Notification — une seule fois par ID
+          const unnotified = newOrders.filter((o) => !notifiedIdsRef.current.has(o.id));
+          if (unnotified.length > 0) {
+            notifiedIdsRef.current.add(unnotified[0].id);
+            notifyNewOrder(unnotified[0]);
+            setShowBanner(unnotified[0]);
+            setTimeout(() => setShowBanner(null), 6000);
+          }
         }
         // Mettre à jour les statuts des commandes existantes
         setOrders((prev) =>

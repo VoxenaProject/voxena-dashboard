@@ -64,15 +64,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ slots: [] });
   }
 
-  // Déterminer les horaires pour ce jour de la semaine
-  const dayOfWeek = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-  const dayHours = restaurant?.opening_hours?.[dayOfWeek];
+  // Mapping jour EN → FR pour les horaires stockés en français
+  const dayMapping: Record<string, string> = {
+    sunday: "dimanche", monday: "lundi", tuesday: "mardi",
+    wednesday: "mercredi", thursday: "jeudi", friday: "vendredi", saturday: "samedi",
+  };
+  const dayEnglish = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+  const dayFrench = dayMapping[dayEnglish] || dayEnglish;
 
-  let openingSlots: { open: string; close: string }[] = [
-    { open: "11:00", close: "23:00" },
-  ];
-  if (dayHours && Array.isArray(dayHours) && dayHours.length > 0) {
+  // Chercher d'abord en français, puis en anglais (compatibilité)
+  const dayHours = restaurant?.opening_hours?.[dayFrench] || restaurant?.opening_hours?.[dayEnglish];
+
+  // Si le jour est fermé (open=false, pas de services, ou absent)
+  if (!dayHours || dayHours.open === false || (dayHours.services && dayHours.services.length === 0)) {
+    return NextResponse.json({ slots: [], closed: true, day: dayFrench });
+  }
+
+  // Extraire les plages horaires
+  let openingSlots: { open: string; close: string }[] = [];
+  if (dayHours.services && Array.isArray(dayHours.services)) {
+    // Format : { services: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "22:30" }] }
+    openingSlots = dayHours.services.map((s: { from: string; to: string }) => ({ open: s.from, close: s.to }));
+  } else if (Array.isArray(dayHours) && dayHours.length > 0) {
+    // Format alternatif : [{ open: "11:00", close: "23:00" }]
     openingSlots = dayHours;
+  }
+
+  // Si aucun créneau trouvé, défaut 11h-23h
+  if (openingSlots.length === 0) {
+    openingSlots = [{ open: "11:00", close: "23:00" }];
   }
 
   // Durée par défaut et buffer de retournement depuis les settings du restaurant
@@ -127,5 +147,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ slots });
+  const response = NextResponse.json({ slots });
+  // Cache 2 min — les dispos changent quand une résa est créée
+  response.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=60");
+  return response;
 }

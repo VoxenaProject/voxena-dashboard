@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         .order("sort_order"),
       supabase
         .from("menu_items")
-        .select("menu_id, name, price, allergens")
+        .select("menu_id, name, price")
         .eq("restaurant_id", restaurantId)
         .eq("is_available", true)
         .order("sort_order"),
@@ -50,17 +50,20 @@ export async function GET(request: Request) {
         .map((i) => ({
           name: i.name,
           price: i.price,
-          allergens: i.allergens?.length > 0 ? i.allergens : undefined,
         })),
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       name: restaurant?.name || null,
       address: restaurant?.address || null,
       phone: restaurant?.phone || null,
       hours: restaurant?.opening_hours || null,
       menu,
     });
+
+    // Cache 1h — le menu change rarement pendant le service
+    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=1800");
+    return response;
   } catch (err) {
     console.error("[menu/light] Erreur:", err);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

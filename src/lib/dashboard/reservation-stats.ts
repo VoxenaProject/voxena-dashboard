@@ -57,7 +57,7 @@ export async function getReservationStats(
   // Récupérer les résas du jour
   const { data: todayResas } = await supabase
     .from("reservations")
-    .select("id, covers, status")
+    .select("id, covers, status, table_id")
     .eq("restaurant_id", restaurantId)
     .eq("date", today);
 

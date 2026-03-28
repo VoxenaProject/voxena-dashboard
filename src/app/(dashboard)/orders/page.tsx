@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { OrderList } from "@/components/orders/order-list";
-import { OrderDatePicker } from "@/components/orders/order-date-picker";
+import { ReservationDatePicker } from "@/components/reservations/reservation-date-picker";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { Order, Customer } from "@/lib/supabase/types";
@@ -57,7 +57,7 @@ export default async function OrdersPage({ searchParams }: Props) {
               : `Commandes du ${new Date(selectedDate).toLocaleDateString("fr-BE", { weekday: "long", day: "numeric", month: "long" })}`}
           </p>
         </div>
-        <OrderDatePicker currentDate={selectedDate} />
+        <ReservationDatePicker currentDate={selectedDate} basePath="/orders" />
       </div>
       <OrderList
         initialOrders={(ordersRes.data as Order[]) || []}
