@@ -750,6 +750,16 @@ function ReservationCard({
         )}
       </div>
 
+      {/* Timestamp de création */}
+      {reservation.created_at && (
+        <span className="text-[11px] text-muted-foreground/40 mt-1 block">
+          Réservée à {(() => {
+            const createdAt = new Date(reservation.created_at);
+            return `${createdAt.getHours().toString().padStart(2, "0")}:${createdAt.getMinutes().toString().padStart(2, "0")}`;
+          })()}
+        </span>
+      )}
+
       {/* Row 4 — occasion, préférences, notes, actions */}
       {hasBottomRow && (
         <div className="mt-3 flex items-center justify-between">

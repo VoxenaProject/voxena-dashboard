@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { DashboardLiveIndicator } from "@/components/dashboard/dashboard-live-indicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevenueChart } from "@/components/charts/revenue-chart";
 import { PopularItemsChart } from "@/components/charts/popular-items-chart";
@@ -48,6 +49,7 @@ interface DashboardContentProps {
   plan?: SubscriptionPlan;
   reservationStats?: ReservationStats | null;
   upcomingSummary?: UpcomingReservationSummary | null;
+  restaurantId: string;
 }
 
 // -- Composant principal --
@@ -59,6 +61,7 @@ export function DashboardContent({
   plan = "orders",
   reservationStats,
   upcomingSummary,
+  restaurantId,
 }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState("commandes");
 
@@ -75,6 +78,9 @@ export function DashboardContent({
 
   return (
     <PageWrapper>
+      {/* Indicateur temps réel — polling nouvelles commandes/réservations */}
+      <DashboardLiveIndicator restaurantId={restaurantId} />
+
       {/* Tabs pour le plan pro — style underline */}
       {showTabs && (
         <div className="mb-10">

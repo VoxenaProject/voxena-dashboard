@@ -147,6 +147,9 @@ export function OrderCard({
             #{order.id.slice(0, 4).toUpperCase()}
           </span>
         </div>
+        <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+          {minutesElapsed < 1 ? "À l'instant" : minutesElapsed < 60 ? `Il y a ${minutesElapsed} min` : `Passée à ${createdTime}`}
+        </p>
 
         {/* Ligne 2 : nom client + total */}
         <div className="mt-3 flex justify-between items-baseline">

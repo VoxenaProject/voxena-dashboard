@@ -83,6 +83,7 @@ export default async function DashboardHome({ searchParams }: Props) {
         plan={plan}
         reservationStats={reservationStats}
         upcomingSummary={upcomingSummary}
+        restaurantId={restaurantId}
       />
     </>
   );
