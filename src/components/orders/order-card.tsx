@@ -187,6 +187,56 @@ export function OrderCard({
           )}
         </div>
 
+        {/* ETA — Estimated ready/delivery time */}
+        {!isDone && order.status !== "annulee" && (() => {
+          const isScheduled = order.special_instructions?.includes("[COMMANDE PROGRAMMÉE");
+          const etaTime = isLivraison ? order.delivery_time_estimate : order.pickup_time;
+
+          // Calculer l'ETA si pas fourni par l'agent
+          const fallbackEta = (() => {
+            const created = new Date(order.created_at);
+            const addMin = isLivraison ? 45 : 30;
+            created.setMinutes(created.getMinutes() + addMin);
+            return `${created.getHours().toString().padStart(2, "0")}:${created.getMinutes().toString().padStart(2, "0")}`;
+          })();
+
+          const displayEta = etaTime || fallbackEta;
+          const etaLabel = isScheduled
+            ? "Programmée"
+            : isLivraison
+              ? "Livraison estimée"
+              : "Prêt vers";
+
+          // Calculer la progression temporelle
+          const createdMs = new Date(order.created_at).getTime();
+          const totalDuration = (isLivraison ? 45 : 30) * 60000;
+          const elapsed = Date.now() - createdMs;
+          const timeProgress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+
+          return (
+            <div className={`mt-3 px-3 py-2.5 rounded-xl ${isScheduled ? "bg-amber-500/[0.04] border border-amber-200/30" : "bg-muted/30"}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-medium ${isScheduled ? "text-amber-600" : "text-muted-foreground"}`}>
+                  {etaLabel}
+                </span>
+                <span className={`text-sm font-mono font-semibold ${isScheduled ? "text-amber-700" : "text-foreground"}`}>
+                  {displayEta}
+                </span>
+              </div>
+              {!isScheduled && (
+                <div className="h-[2px] bg-border/30 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${
+                      timeProgress > 90 ? "bg-red-500" : timeProgress > 70 ? "bg-amber-500" : "bg-violet"
+                    }`}
+                    style={{ width: `${timeProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Ligne 4 : statut + action */}
         <div className="mt-4 flex justify-between items-center">
           <div className="flex items-center">
