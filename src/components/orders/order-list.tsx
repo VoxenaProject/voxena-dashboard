@@ -73,8 +73,32 @@ export function OrderList({
       );
     }
 
+    // Trier par heure de création (plus récente en premier)
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     return result;
   }, [orders, filter, typeFilter, search]);
+
+  // Grouper les commandes par tranche horaire
+  const groupedOrders = useMemo(() => {
+    const groups: { label: string; orders: typeof filtered }[] = [];
+    let currentHour = -1;
+
+    for (const order of filtered) {
+      const h = new Date(order.created_at).getHours();
+      if (h !== currentHour) {
+        currentHour = h;
+        groups.push({
+          label: `${h.toString().padStart(2, "0")}h`,
+          orders: [order],
+        });
+      } else {
+        groups[groups.length - 1].orders.push(order);
+      }
+    }
+
+    return groups;
+  }, [filtered]);
 
   // Stats
   const activeCount = orders.filter((o) => !isTerminalStatus(o.status)).length;
@@ -264,34 +288,45 @@ export function OrderList({
         </div>
       </div>
 
-      {/* Liste */}
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <EmptyState
-                icon={ShoppingBag}
-                title={search ? "Aucun résultat" : "Aucune commande"}
-                description={
-                  search
-                    ? `Aucune commande ne correspond à "${search}"`
-                    : "Les nouvelles commandes apparaîtront ici en temps réel."
-                }
-              />
-            </motion.div>
-          ) : (
-            filtered.map((order, i) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onStatusChange={handleStatusChange}
-                index={i}
-                isNew={newOrderIds.has(order.id)}
-                customers={customers}
-              />
-            ))
-          )}
-        </AnimatePresence>
+      {/* Liste groupée par heure */}
+      <div className="space-y-1">
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={ShoppingBag}
+            title={search ? "Aucun résultat" : "Aucune commande"}
+            description={
+              search
+                ? `Aucune commande ne correspond à "${search}"`
+                : "Les nouvelles commandes apparaîtront ici en temps réel."
+            }
+          />
+        ) : (
+          groupedOrders.map((group) => (
+            <div key={group.label}>
+              {/* Header de tranche horaire */}
+              <div className="sticky top-0 z-10 py-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/40 px-1">
+                  {group.label}
+                </span>
+              </div>
+              {/* Commandes de cette tranche */}
+              <div className="space-y-2 mb-4">
+                <AnimatePresence mode="popLayout">
+                  {group.orders.map((order, i) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      onStatusChange={handleStatusChange}
+                      index={i}
+                      isNew={newOrderIds.has(order.id)}
+                      customers={customers}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

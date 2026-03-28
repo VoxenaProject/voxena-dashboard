@@ -168,6 +168,25 @@ export function ReservationList({
     return { pendingReservations: pending, regularReservations: regular };
   }, [reservations, filter, search]);
 
+  // Grouper les résas régulières par service (midi/soir)
+  const groupedReservations = useMemo(() => {
+    const groups: { label: string; items: typeof regularReservations }[] = [];
+    let currentLabel = "";
+
+    for (const resa of regularReservations) {
+      const h = parseInt(resa.time_slot.split(":")[0]);
+      const label = h < 15 ? "Service midi" : "Service soir";
+      if (label !== currentLabel) {
+        currentLabel = label;
+        groups.push({ label, items: [resa] });
+      } else {
+        groups[groups.length - 1].items.push(resa);
+      }
+    }
+
+    return groups;
+  }, [regularReservations]);
+
   const allFiltered = [...pendingReservations, ...regularReservations];
 
   // Stats
@@ -570,22 +589,33 @@ export function ReservationList({
                 </motion.div>
               )}
 
-              {/* Réservations régulières (triées par heure) */}
-              <AnimatePresence mode="popLayout">
-                {regularReservations.map((resa, i) => (
-                  <ReservationCard
-                    key={resa.id}
-                    reservation={resa}
-                    tables={tables}
-                    index={i}
-                    isNew={newReservationIds.has(resa.id)}
-                    isPending={false}
-                    onStatusChange={handleStatusChange}
-                    onEdit={handleEdit}
-                    customers={customers}
-                  />
-                ))}
-              </AnimatePresence>
+              {/* Réservations régulières — groupées par service */}
+              {groupedReservations.map((group) => (
+                <div key={group.label}>
+                  <div className="sticky top-0 z-10 py-1.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/40 px-1">
+                      {group.label}
+                    </span>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <AnimatePresence mode="popLayout">
+                      {group.items.map((resa, i) => (
+                        <ReservationCard
+                          key={resa.id}
+                          reservation={resa}
+                          tables={tables}
+                          index={i}
+                          isNew={newReservationIds.has(resa.id)}
+                          isPending={false}
+                          onStatusChange={handleStatusChange}
+                          onEdit={handleEdit}
+                          customers={customers}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              ))}
 
               {/* Si filtre "en_attente", afficher les pending dans le flux normal */}
               {filter === "en_attente" && (
