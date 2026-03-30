@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const {
       customer_name,
       customer_phone,
+      caller_id,
       order_type,
       order_items,
       items: itemsField,
@@ -53,6 +54,9 @@ export async function POST(request: Request) {
       conversation_id,
       restaurant_id,
     } = body;
+
+    // Utiliser le caller_id comme fallback si customer_phone n'est pas fourni
+    const resolvedPhone = customer_phone || caller_id || null;
 
     if (!restaurant_id) {
       return NextResponse.json(
@@ -137,7 +141,7 @@ export async function POST(request: Request) {
         restaurant_id,
         conversation_id: conversation_id || null,
         customer_name: customer_name || null,
-        customer_phone: customer_phone || null,
+        customer_phone: resolvedPhone,
         order_type: normalizedOrderType,
         items,
         special_instructions: isScheduled
@@ -194,10 +198,10 @@ export async function POST(request: Request) {
         event_type: "tool_call",
         payload: { tool: "create_order", order_id: order.id },
       }),
-      customer_phone
+      resolvedPhone
         ? supabase.rpc("upsert_customer", {
             p_restaurant_id: restaurant_id,
-            p_phone: customer_phone,
+            p_phone: resolvedPhone,
             p_name: customer_name || null,
             p_total: total_amount || 0,
           })
@@ -221,7 +225,7 @@ export async function POST(request: Request) {
     })();
 
     // SMS confirmation au client — fire-and-forget
-    if (customer_phone) {
+    if (resolvedPhone) {
       (async () => {
         try {
           const { data: rd } = await supabase
@@ -231,7 +235,7 @@ export async function POST(request: Request) {
             .single();
           if (rd?.telnyx_phone) {
             sendOrderConfirmationSms({
-              customerPhone: customer_phone,
+              customerPhone: resolvedPhone,
               customerName: order.customer_name || "Client",
               restaurantName: rd.name,
               restaurantPhone: rd.telnyx_phone,
