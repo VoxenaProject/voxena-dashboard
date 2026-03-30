@@ -93,7 +93,11 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Utiliser le caller_id comme fallback si customer_phone n'est pas fourni
-    const resolvedPhone = customer_phone || caller_id || null;
+    // Nettoyer le caller_id (peut venir sous forme "sip:+32...@..." ou "tel:+32...")
+    const cleanCallerId = caller_id
+      ? caller_id.replace(/^(sip:|tel:)/, "").replace(/@.*$/, "").trim()
+      : null;
+    const resolvedPhone = customer_phone || cleanCallerId || null;
 
     // Convertir covers en nombre si envoyé en string par l'agent
     const coversNum = typeof covers === "string" ? parseInt(covers, 10) : covers;

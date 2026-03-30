@@ -56,7 +56,11 @@ export async function POST(request: Request) {
     } = body;
 
     // Utiliser le caller_id comme fallback si customer_phone n'est pas fourni
-    const resolvedPhone = customer_phone || caller_id || null;
+    // Nettoyer le caller_id (peut venir sous forme "sip:+32...@..." ou "tel:+32...")
+    const cleanCallerId = caller_id
+      ? caller_id.replace(/^(sip:|tel:)/, "").replace(/@.*$/, "").trim()
+      : null;
+    const resolvedPhone = customer_phone || cleanCallerId || null;
 
     if (!restaurant_id) {
       return NextResponse.json(
