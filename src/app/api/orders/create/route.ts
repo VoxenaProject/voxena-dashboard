@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseOrderItems, calculateTotal } from "@/lib/elevenlabs/parse-order";
 import { sendOrderNotification } from "@/lib/email/send-notification";
+import { sendOrderConfirmationSms } from "@/lib/sms/send-sms-notification";
 import { correctAddress } from "@/lib/utils/belgian-communes";
 import { checkRestaurantOpen } from "@/lib/utils/day-mapping";
 
@@ -218,6 +219,31 @@ export async function POST(request: Request) {
         }
       } catch (e) { console.warn("[orders/create] Erreur email:", e); }
     })();
+
+    // SMS confirmation au client — fire-and-forget
+    if (customer_phone) {
+      (async () => {
+        try {
+          const { data: rd } = await supabase
+            .from("restaurants")
+            .select("name, telnyx_phone")
+            .eq("id", restaurant_id)
+            .single();
+          if (rd?.telnyx_phone) {
+            sendOrderConfirmationSms({
+              customerPhone: customer_phone,
+              customerName: order.customer_name || "Client",
+              restaurantName: rd.name,
+              restaurantPhone: rd.telnyx_phone,
+              items: order.items || [],
+              totalAmount: order.total_amount,
+              orderType: order.order_type,
+              pickupTime: order.pickup_time,
+            });
+          }
+        } catch (e) { console.warn("[orders/create] Erreur SMS:", e); }
+      })();
+    }
 
     // Correction d'adresse belge — fire-and-forget (ne bloque PAS la réponse)
     if (delivery_address) {

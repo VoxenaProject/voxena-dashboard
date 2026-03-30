@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/api-auth";
 import { sendReservationConfirmation } from "@/lib/email/send-notification";
+import { sendReservationConfirmationSms } from "@/lib/sms/send-sms-notification";
 import { isValidPhone } from "@/lib/utils/phone";
 
 /**
@@ -337,6 +338,30 @@ export async function POST(request: NextRequest) {
           },
         }).catch((err) => console.error("[reservations/POST] Erreur envoi email:", err));
       }
+    }
+
+    // SMS confirmation au client — fire-and-forget
+    if (customer_phone) {
+      (async () => {
+        try {
+          const { data: rd } = await supabase
+            .from("restaurants")
+            .select("name, telnyx_phone")
+            .eq("id", restaurant_id)
+            .single();
+          if (rd?.telnyx_phone) {
+            sendReservationConfirmationSms({
+              customerPhone: customer_phone,
+              customerName: customer_name,
+              restaurantName: rd.name,
+              restaurantPhone: rd.telnyx_phone,
+              date,
+              timeSlot: time_slot,
+              covers: coversNum,
+            });
+          }
+        } catch (e) { console.warn("[reservations/POST] Erreur SMS:", e); }
+      })();
     }
 
     // Upsert client si téléphone fourni

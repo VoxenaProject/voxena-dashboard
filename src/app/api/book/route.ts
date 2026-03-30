@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendReservationConfirmation } from "@/lib/email/send-notification";
+import { sendReservationConfirmationSms } from "@/lib/sms/send-sms-notification";
 import { isValidPhone } from "@/lib/utils/phone";
 
 // Rate limiting simple en mémoire (par IP)
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     // Vérifier que le restaurant existe
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("id, name, address, phone, default_reservation_duration, turnover_buffer")
+      .select("id, name, address, phone, telnyx_phone, default_reservation_duration, turnover_buffer")
       .eq("id", restaurant_id)
       .single();
 
@@ -193,6 +194,19 @@ export async function POST(request: NextRequest) {
           phone: restaurant.phone,
         },
       }).catch((err) => console.error("[book/POST] Erreur envoi email:", err));
+    }
+
+    // SMS confirmation au client — fire-and-forget
+    if (customer_phone && restaurant.telnyx_phone) {
+      sendReservationConfirmationSms({
+        customerPhone: customer_phone,
+        customerName: customer_name,
+        restaurantName: restaurant.name,
+        restaurantPhone: restaurant.telnyx_phone,
+        date,
+        timeSlot: time_slot,
+        covers: coversNum,
+      }).catch((e) => console.warn("[book/POST] Erreur SMS:", e));
     }
 
     // Upsert client

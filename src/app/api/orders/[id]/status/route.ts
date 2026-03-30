@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/api-auth";
+import { sendOrderReadySms } from "@/lib/sms/send-sms-notification";
 
 /**
  * PATCH /api/orders/[id]/status
@@ -98,6 +99,27 @@ export async function PATCH(
       event_type: "status_changed",
       details: { new_status: status },
     });
+
+    // SMS "commande prête" au client — fire-and-forget
+    if (status === "prete" && order.customer_phone) {
+      (async () => {
+        try {
+          const { data: rd } = await supabase
+            .from("restaurants")
+            .select("name, telnyx_phone")
+            .eq("id", order.restaurant_id)
+            .single();
+          if (rd?.telnyx_phone) {
+            sendOrderReadySms({
+              customerPhone: order.customer_phone,
+              customerName: order.customer_name || "Client",
+              restaurantName: rd.name,
+              restaurantPhone: rd.telnyx_phone,
+            });
+          }
+        } catch (e) { console.warn("[orders/status] Erreur SMS:", e); }
+      })();
+    }
 
     return NextResponse.json({ success: true, order });
   } catch (err) {
