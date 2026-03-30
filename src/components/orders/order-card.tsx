@@ -251,7 +251,7 @@ export function OrderCard({
           {next && onStatusChange && (
             <button
               disabled={isUpdating}
-              className="text-xs font-medium text-violet hover:text-violet/80 transition-colors flex items-center gap-0.5 disabled:opacity-50"
+              className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors flex items-center gap-0.5 disabled:opacity-50 px-2.5 py-1.5 -mr-2.5 rounded-lg"
               onClick={async (e) => {
                 e.preventDefault();
                 if (isUpdating) return;

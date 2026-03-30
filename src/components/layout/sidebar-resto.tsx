@@ -10,6 +10,7 @@ import {
   ChefHat,
   CalendarDays,
   LayoutGrid,
+  BarChart3,
   Settings,
   Crown,
   LogOut,
@@ -39,6 +40,7 @@ const navItems = [
   { href: "/menu", label: "Menu", icon: UtensilsCrossed, plans: ["orders", "pro"] as SubscriptionPlan[] },
   { href: "/reservations", label: "Réservations", icon: CalendarDays, plans: ["tables", "pro"] as SubscriptionPlan[] },
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] as SubscriptionPlan[] },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] as SubscriptionPlan[] },
 ];
 

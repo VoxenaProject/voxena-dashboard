@@ -29,6 +29,7 @@ export interface Profile {
 export interface Restaurant {
   id: string;
   name: string;
+  slug: string | null;
   phone: string | null;
   address: string | null;
   whatsapp_phone: string | null;

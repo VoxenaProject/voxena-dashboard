@@ -448,7 +448,7 @@ function ReservationsSection({
               </CardTitle>
               {totalPending > 0 && (
                 <button
-                  className="text-xs font-medium text-violet hover:text-violet/80 transition-colors disabled:opacity-50"
+                  className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors disabled:opacity-50 px-2.5 py-1.5 rounded-lg"
                   onClick={handleConfirmAll}
                   disabled={confirmingAll}
                 >

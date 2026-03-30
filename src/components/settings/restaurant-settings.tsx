@@ -6,6 +6,7 @@ import {
   Building2,
   Phone,
   Clock,
+  CalendarDays,
   ParkingCircle,
   Sun,
   Accessibility,
@@ -394,6 +395,10 @@ export function RestaurantSettings({
     whatsapp_phone: restaurant.whatsapp_phone || "",
     owner_name: restaurant.owner_name || "",
   });
+
+  // Slug pour la page de réservation publique
+  const [slug, setSlug] = useState(restaurant.slug || "");
+  const [slugCopied, setSlugCopied] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
   const [whatsappError, setWhatsappError] = useState(false);
 
@@ -517,6 +522,32 @@ export function RestaurantSettings({
 
   async function saveReservationBuffer() {
     await saveFields({ turnover_buffer: turnoverBuffer });
+  }
+
+  async function saveSlug() {
+    if (!slug) {
+      toast.error("Le lien de réservation ne peut pas être vide");
+      return;
+    }
+    // Slugify : minuscules, pas d'espaces, pas de caractères spéciaux
+    const cleanSlug = slug
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    setSlug(cleanSlug);
+    await saveFields({ slug: cleanSlug });
+  }
+
+  function copyBookingUrl() {
+    const url = `${window.location.origin}/book/${slug}`;
+    navigator.clipboard.writeText(url);
+    setSlugCopied(true);
+    setTimeout(() => setSlugCopied(false), 2000);
+    toast.success("Lien copié !");
   }
 
   async function handlePasswordChange() {
@@ -676,6 +707,57 @@ export function RestaurantSettings({
           onSave={saveHours}
         >
           <OpeningHoursEditor value={openingHours} onChange={setOpeningHours} />
+        </SettingsRow>
+
+        <SettingsRow
+          icon={CalendarDays}
+          label="Réservation en ligne"
+          summary={slug ? `getvoxena.com/book/${slug}` : "Non configuré"}
+          expandedId="booking"
+          expanded={expandedSection === "booking"}
+          onToggle={toggleSection}
+          saving={saving}
+          onSave={saveSlug}
+        >
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="settings-slug">Lien de réservation</Label>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-0 flex-1">
+                  <span className="text-xs text-muted-foreground bg-muted px-3 py-2.5 rounded-l-md border border-r-0 border-border whitespace-nowrap">
+                    /book/
+                  </span>
+                  <Input
+                    id="settings-slug"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                    placeholder="mon-restaurant"
+                    className="rounded-l-none"
+                  />
+                </div>
+                {slug && (
+                  <button
+                    type="button"
+                    onClick={copyBookingUrl}
+                    className="px-3 py-2 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1.5"
+                  >
+                    {slugCopied ? <Check className="w-3.5 h-3.5 text-green" /> : <Copy className="w-3.5 h-3.5" />}
+                    {slugCopied ? "Copié" : "Copier"}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Vos clients pourront réserver en ligne via ce lien. Vous pouvez aussi l&apos;intégrer sur votre site web.
+              </p>
+            </div>
+            {slug && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet/5 border border-violet/10">
+                <span className="text-xs text-violet font-mono">
+                  {typeof window !== "undefined" ? window.location.origin : "https://app.getvoxena.com"}/book/{slug}
+                </span>
+              </div>
+            )}
+          </div>
         </SettingsRow>
       </SettingsGroup>
 

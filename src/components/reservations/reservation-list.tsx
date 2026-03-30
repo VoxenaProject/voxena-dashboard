@@ -560,7 +560,7 @@ export function ReservationList({
                     </div>
                     {pendingReservations.length > 1 && (
                       <button
-                        className="text-xs font-medium text-violet hover:text-violet/80 transition-colors disabled:opacity-50"
+                        className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors disabled:opacity-50 px-2.5 py-1.5 rounded-lg"
                         onClick={handleConfirmAllPending}
                         disabled={confirmingAll}
                       >
@@ -820,13 +820,13 @@ function ReservationCard({
             {reservation.status === "en_attente" && (
               <>
                 <button
-                  className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                  className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors px-2.5 py-1.5 rounded-lg"
                   onClick={() => onStatusChange(reservation.id, "confirmee")}
                 >
                   Confirmer
                 </button>
                 <button
-                  className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
+                  className="text-xs font-medium text-red-500 hover:text-red-400 hover:bg-red-500/5 transition-colors px-2.5 py-1.5 rounded-lg"
                   onClick={() => onStatusChange(reservation.id, "annulee")}
                 >
                   Annuler
@@ -837,13 +837,13 @@ function ReservationCard({
             {reservation.status === "confirmee" && (
               <>
                 <button
-                  className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                  className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors px-2.5 py-1.5 rounded-lg"
                   onClick={() => onStatusChange(reservation.id, "assise")}
                 >
                   Asseoir &rarr;
                 </button>
                 <button
-                  className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
+                  className="text-xs font-medium text-red-500 hover:text-red-400 hover:bg-red-500/5 transition-colors px-2.5 py-1.5 rounded-lg"
                   onClick={() => onStatusChange(reservation.id, "annulee")}
                 >
                   Annuler
@@ -853,7 +853,7 @@ function ReservationCard({
 
             {reservation.status === "assise" && (
               <button
-                className="text-xs font-medium text-violet hover:text-violet/80 transition-colors"
+                className="text-xs font-medium text-violet hover:text-violet/80 hover:bg-violet/5 transition-colors px-2.5 py-1.5 rounded-lg"
                 onClick={() => onStatusChange(reservation.id, "terminee")}
               >
                 Terminer
