@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       restaurant_id: body.restaurant_id || null,
       event_type: "reservation_tool_call",
       payload: body,
-    }).catch(() => {});
+    });
 
     const {
       restaurant_id,

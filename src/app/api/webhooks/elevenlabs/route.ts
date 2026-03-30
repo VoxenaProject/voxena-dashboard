@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyWebhookSignature } from "@/lib/elevenlabs/verify-webhook";
 import { parseOrderItems, calculateTotal } from "@/lib/elevenlabs/parse-order";
+import { sendOrderConfirmationSms } from "@/lib/sms/send-sms-notification";
+import { sendReservationConfirmationSms } from "@/lib/sms/send-sms-notification";
 
 /**
  * POST /api/webhooks/elevenlabs
@@ -172,6 +174,115 @@ export async function POST(request: Request) {
           event_type: "created",
           details: { source: "webhook_fallback", conversation_id: conversationId },
         });
+      }
+    }
+
+    // ── Extraire le numéro de l'appelant depuis le payload webhook ──
+    // Telnyx/ElevenLabs peut le mettre dans différents champs
+    const callerPhone =
+      data.caller_number ||
+      data.from ||
+      data.phone_number ||
+      data.metadata?.caller_number ||
+      data.metadata?.from ||
+      data.metadata?.phone_number ||
+      collected.customer_phone ||
+      null;
+
+    // Nettoyer le numéro (peut être au format sip:, tel:, etc.)
+    const cleanPhone = callerPhone
+      ? callerPhone.toString().replace(/^(sip:|tel:)/, "").replace(/@.*$/, "").trim()
+      : null;
+    const validPhone = cleanPhone && /^\+?[0-9]{8,15}$/.test(cleanPhone.replace(/[\s\-\.\(\)]/g, ""))
+      ? cleanPhone
+      : null;
+
+    // Logger le numéro trouvé pour debug
+    await supabase.from("agent_logs").insert({
+      restaurant_id: restaurantIdParam || null,
+      conversation_id: conversationId,
+      event_type: "caller_phone_extracted",
+      payload: { callerPhone, cleanPhone, validPhone, metadata_keys: Object.keys(data.metadata || {}), data_keys: Object.keys(data) },
+    });
+
+    // ── Enrichir les réservations liées à cet appel ──
+    const { data: existingResas } = await supabase
+      .from("reservations")
+      .select("id, restaurant_id, customer_name, customer_phone, date, time_slot, covers")
+      .eq("conversation_id", conversationId);
+
+    if (existingResas && existingResas.length > 0) {
+      for (const resa of existingResas) {
+        // Mettre à jour le numéro si absent
+        if (!resa.customer_phone && validPhone) {
+          await supabase
+            .from("reservations")
+            .update({ customer_phone: validPhone })
+            .eq("id", resa.id);
+        }
+
+        // Envoyer le SMS de confirmation (si on a un numéro)
+        const phoneToUse = resa.customer_phone || validPhone;
+        if (phoneToUse) {
+          const { data: resto } = await supabase
+            .from("restaurants")
+            .select("name, telnyx_phone")
+            .eq("id", resa.restaurant_id)
+            .single();
+
+          if (resto?.telnyx_phone) {
+            sendReservationConfirmationSms({
+              customerPhone: phoneToUse,
+              customerName: resa.customer_name,
+              restaurantName: resto.name,
+              restaurantPhone: resto.telnyx_phone,
+              date: resa.date,
+              timeSlot: resa.time_slot,
+              covers: resa.covers,
+            }).catch((e) => console.warn("[webhook] Erreur SMS résa:", e));
+          }
+
+          // Upsert client
+          await supabase.rpc("upsert_customer", {
+            p_restaurant_id: resa.restaurant_id,
+            p_phone: phoneToUse,
+            p_name: resa.customer_name || null,
+            p_total: 0,
+          });
+        }
+      }
+    }
+
+    // ── SMS pour les commandes si le numéro manquait à la création ──
+    if (existingOrder && !existingOrder.transcript && validPhone) {
+      // Le numéro n'était peut-être pas là à la création — enrichir + SMS
+      const { data: orderFull } = await supabase
+        .from("orders")
+        .select("id, restaurant_id, customer_name, customer_phone, items, total_amount, order_type, pickup_time")
+        .eq("id", existingOrder.id)
+        .single();
+
+      if (orderFull && !orderFull.customer_phone) {
+        await supabase.from("orders").update({ customer_phone: validPhone }).eq("id", orderFull.id);
+
+        const { data: resto } = await supabase
+          .from("restaurants")
+          .select("name, telnyx_phone")
+          .eq("id", orderFull.restaurant_id)
+          .single();
+
+        if (resto?.telnyx_phone) {
+          sendOrderConfirmationSms({
+            customerPhone: validPhone,
+            customerName: orderFull.customer_name || "Client",
+            restaurantName: resto.name,
+            restaurantPhone: resto.telnyx_phone,
+            items: orderFull.items || [],
+            totalAmount: orderFull.total_amount,
+            orderType: orderFull.order_type,
+            pickupTime: orderFull.pickup_time,
+          }).catch((e) => console.warn("[webhook] Erreur SMS order:", e));
+        }
       }
     }
 
