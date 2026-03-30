@@ -73,6 +73,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Log le body complet pour debug (visible dans /admin/logs)
+    const supabaseForLog = createServiceClient();
+    await supabaseForLog.from("agent_logs").insert({
+      restaurant_id: body.restaurant_id || null,
+      event_type: "reservation_tool_call",
+      payload: body,
+    }).catch(() => {});
+
     const {
       restaurant_id,
       date,
