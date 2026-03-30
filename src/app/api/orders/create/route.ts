@@ -60,7 +60,12 @@ export async function POST(request: Request) {
     const cleanCallerId = caller_id
       ? caller_id.replace(/^(sip:|tel:)/, "").replace(/@.*$/, "").trim()
       : null;
-    const resolvedPhone = customer_phone || cleanCallerId || null;
+    const rawPhone = customer_phone || cleanCallerId || null;
+    // Si le numéro est invalide (caller_id bizarre), on continue sans — pas de blocage
+    const resolvedPhone = (rawPhone && /^\+?[0-9]{8,15}$/.test(rawPhone.replace(/[\s\-\.\(\)]/g, ""))) ? rawPhone : null;
+    if (rawPhone && !resolvedPhone) {
+      console.warn("[orders/create] caller_id/phone invalide, ignoré:", rawPhone);
+    }
 
     if (!restaurant_id) {
       return NextResponse.json(

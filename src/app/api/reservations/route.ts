@@ -109,13 +109,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validation du téléphone
+    // Validation du téléphone — si c'est un caller_id invalide, on l'ignore au lieu de bloquer
     if (resolvedPhone && !isValidPhone(resolvedPhone)) {
-      return NextResponse.json(
-        { error: "Numéro de téléphone invalide" },
-        { status: 400 }
-      );
+      if (customer_phone) {
+        // Le client a fourni un numéro explicitement invalide → erreur
+        return NextResponse.json(
+          { error: "Numéro de téléphone invalide" },
+          { status: 400 }
+        );
+      }
+      // caller_id invalide → on continue sans numéro (pas de SMS, pas de tracking)
+      console.warn("[reservations/POST] caller_id invalide, ignoré:", resolvedPhone);
     }
+
+    // Numéro final : valide ou null
+    const finalPhone = (resolvedPhone && isValidPhone(resolvedPhone)) ? resolvedPhone : null;
 
     // Vérifier auth — soit service role (agent via api-key), soit cookie (owner)
     const apiKey = request.headers.get("x-api-key") || request.headers.get("X-Api-Key");
@@ -301,7 +309,7 @@ export async function POST(request: NextRequest) {
         duration: effectiveDuration,
         covers: coversNum,
         customer_name,
-        customer_phone: resolvedPhone,
+        customer_phone: finalPhone,
         customer_email: customer_email || null,
         status: isWaitlist ? "liste_attente" : isWalkin ? "assise" : "en_attente",
         notes: cleanNotes || null,
@@ -349,7 +357,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SMS confirmation au client — fire-and-forget
-    if (resolvedPhone) {
+    if (finalPhone) {
       (async () => {
         try {
           const { data: rd } = await supabase
@@ -359,7 +367,7 @@ export async function POST(request: NextRequest) {
             .single();
           if (rd?.telnyx_phone) {
             sendReservationConfirmationSms({
-              customerPhone: resolvedPhone,
+              customerPhone: finalPhone,
               customerName: customer_name,
               restaurantName: rd.name,
               restaurantPhone: rd.telnyx_phone,
@@ -373,11 +381,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert client si téléphone fourni
-    if (resolvedPhone) {
+    if (finalPhone) {
       await supabase
         .rpc("upsert_customer", {
           p_restaurant_id: restaurant_id,
-          p_phone: resolvedPhone,
+          p_phone: finalPhone,
           p_name: customer_name || null,
           p_total: 0,
         })
@@ -392,7 +400,7 @@ export async function POST(request: NextRequest) {
           .from("customers")
           .update({ email: customer_email })
           .eq("restaurant_id", restaurant_id)
-          .eq("phone", resolvedPhone);
+          .eq("phone", finalPhone);
       }
     }
 
