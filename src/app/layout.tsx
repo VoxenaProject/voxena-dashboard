@@ -12,6 +12,22 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Voxena Dashboard",
   description: "Gestion des commandes restaurant — Voxena",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Voxena",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+  themeColor: "#0E1333",
 };
 
 export default function RootLayout({
@@ -22,6 +38,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${jetbrainsMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
+        <link rel="apple-touch-icon" href="/app-icons/icon.svg" />
         {/* Script pour appliquer le thème sombre avant le rendu (évite le flash blanc) */}
         <script
           dangerouslySetInnerHTML={{
@@ -31,7 +48,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="bottom-center" />
       </body>
     </html>
   );
