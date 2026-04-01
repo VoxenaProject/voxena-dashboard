@@ -1,5 +1,6 @@
 import { SidebarResto } from "@/components/layout/sidebar-resto";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { PageTransition } from "@/components/layout/page-transition";
 import { TopBar } from "@/components/layout/top-bar";
 import { GuidedTour } from "@/components/onboarding/guided-tour";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -43,7 +44,9 @@ export default async function DashboardLayout({
           <TopBar restaurantId={restaurantId} initialAgentStatus={agentStatus} />
         </div>
         <main className="flex-1 overflow-y-auto bg-background main-content-area">
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundary>
+            <PageTransition>{children}</PageTransition>
+          </ErrorBoundary>
         </main>
       </div>
       <MobileBottomNav plan={subscriptionPlan} pendingOrders={pendingOrders} pendingResas={pendingResas} />
