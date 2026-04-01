@@ -163,6 +163,8 @@ function SidebarContent({
         <Link
           key={item.href}
           href={item.href}
+          aria-label={item.label}
+          aria-current={isActive ? "page" : undefined}
           className={`flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-medium transition-colors duration-150 ${
             collapsed ? "justify-center" : ""
           } ${
@@ -232,7 +234,7 @@ function SidebarContent({
         </div>
 
         {/* Navigation principale */}
-        <nav className="flex-1 px-3 mt-8" data-tour="sidebar-nav">
+        <nav className="flex-1 px-3 mt-8" data-tour="sidebar-nav" aria-label="Menu principal">
           <div className="space-y-0.5">
             {renderNavItems(navItems)}
           </div>

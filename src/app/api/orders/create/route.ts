@@ -5,6 +5,7 @@ import { sendOrderNotification } from "@/lib/email/send-notification";
 import { sendOrderConfirmationSms } from "@/lib/sms/send-sms-notification";
 import { correctAddress } from "@/lib/utils/belgian-communes";
 import { checkRestaurantOpen } from "@/lib/utils/day-mapping";
+import { createOrderSchema, validateBody } from "@/lib/validations";
 
 // Rate limiter simple en mémoire : max 30 commandes/min par restaurant
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -37,9 +38,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: "Body JSON invalide" }, { status: 400 }); }
+
+    // Validation
+    const validation = validateBody(createOrderSchema, body);
+    if (validation.error) return NextResponse.json({ error: validation.error }, { status: 400 });
 
     // Extraire les données de la commande
+    const validated = validation.data!;
     const {
       customer_name,
       customer_phone,
@@ -53,7 +60,7 @@ export async function POST(request: Request) {
       delivery_time_estimate,
       conversation_id,
       restaurant_id,
-    } = body;
+    } = validated;
 
     // Utiliser le caller_id comme fallback si customer_phone n'est pas fourni
     // Nettoyer le caller_id (peut venir sous forme "sip:+32...@..." ou "tel:+32...")
@@ -264,9 +271,7 @@ export async function POST(request: Request) {
         try {
           const result = correctAddress(delivery_address);
           if (result.wasFixed) {
-            console.log(
-              `[orders/create] Adresse corrigée: "${delivery_address}" → "${result.corrected}" (commune: ${result.commune}, CP: ${result.postalCode})`
-            );
+            // Adresse corrigée automatiquement
             await supabase
               .from("orders")
               .update({ delivery_address: result.corrected })

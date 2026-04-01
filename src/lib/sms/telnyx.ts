@@ -65,7 +65,7 @@ export async function sendSms({ to, from, text }: SendSmsParams): Promise<string
     }
 
     const messageId = json.data?.id || null;
-    console.log(`[sms] SMS envoyé à ${to} (id: ${messageId})`);
+    // SMS envoyé avec succès
     return messageId;
   } catch (err) {
     console.error("[sms] Erreur envoi:", err);

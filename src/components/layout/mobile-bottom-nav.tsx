@@ -99,7 +99,7 @@ export function MobileBottomNav({ plan = "orders" }: { plan?: SubscriptionPlan }
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-card/95 backdrop-blur-lg border-t border-border pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-card/95 backdrop-blur-lg border-t border-border pb-[env(safe-area-inset-bottom)]" aria-label="Navigation principale" role="navigation">
         <div className="flex items-center justify-around h-14">
           {available.map((item) => {
             const isActive =
@@ -110,6 +110,8 @@ export function MobileBottomNav({ plan = "orders" }: { plan?: SubscriptionPlan }
               <Link
                 key={item.href}
                 href={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 py-1 px-3 min-w-[56px] transition-colors ${
                   isActive
                     ? "text-violet"

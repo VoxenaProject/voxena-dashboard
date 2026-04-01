@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sendReservationConfirmation } from "@/lib/email/send-notification";
 import { sendReservationConfirmationSms } from "@/lib/sms/send-sms-notification";
 import { isValidPhone } from "@/lib/utils/phone";
+import { bookReservationSchema, validateBody } from "@/lib/validations";
 
 // Rate limiting simple en mémoire (par IP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -40,7 +41,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: "Body JSON invalide" }, { status: 400 }); }
+
+    const validation = validateBody(bookReservationSchema, body);
+    if (validation.error) return NextResponse.json({ error: validation.error }, { status: 400 });
+    const validated = validation.data!;
 
     const {
       restaurant_id,
@@ -54,7 +60,7 @@ export async function POST(request: NextRequest) {
       preferences,
       occasion,
       zone,
-    } = body;
+    } = validated;
 
     const coversNum = typeof covers === "string" ? parseInt(covers, 10) : covers;
 

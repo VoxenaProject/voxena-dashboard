@@ -1,9 +1,14 @@
+import nextDynamic from "next/dynamic";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentRestaurantId } from "@/lib/supabase/auth";
 import { PageWrapper } from "@/components/ui/page-wrapper";
-import { FloorPlanEditor } from "@/components/floor-plan/floor-plan-editor";
 import { NoRestaurant } from "@/components/ui/no-restaurant";
 import type { FloorTable } from "@/lib/supabase/types";
+
+const FloorPlanEditor = nextDynamic(
+  () => import("@/components/floor-plan/floor-plan-editor").then((m) => m.FloorPlanEditor),
+  { loading: () => <div className="h-96 bg-muted/30 rounded-xl animate-pulse" /> }
+);
 
 export const dynamic = "force-dynamic";
 

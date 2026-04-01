@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       tempPassword,
     });
 
-    console.log(`[invite] Restaurateur ${email} invité avec succès pour ${restaurant.name}`);
+    // Invitation envoyée avec succès
 
     return NextResponse.json({
       success: true,

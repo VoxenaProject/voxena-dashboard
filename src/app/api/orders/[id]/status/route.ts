@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/api-auth";
 import { sendOrderReadySms } from "@/lib/sms/send-sms-notification";
+import { updateOrderStatusSchema, validateBody } from "@/lib/validations";
 
 /**
  * PATCH /api/orders/[id]/status
@@ -17,7 +18,12 @@ export async function PATCH(
     if ("error" in auth) return auth.error;
 
     const { id } = await params;
-    const { status } = await request.json();
+
+    let body: unknown;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: "Body JSON invalide" }, { status: 400 }); }
+    const validation = validateBody(updateOrderStatusSchema, body);
+    if (validation.error) return NextResponse.json({ error: validation.error }, { status: 400 });
+    const { status } = validation.data!;
 
     const validStatuses = [
       "nouvelle",

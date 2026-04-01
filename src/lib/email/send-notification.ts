@@ -254,7 +254,7 @@ export async function sendOrderNotification({
     if (error) {
       console.error("[email] Erreur envoi notification commande:", error);
     } else {
-      console.log(`[email] Notification commande envoyée à ${restaurant.owner_email}`);
+      // Notification commande envoyée
     }
   } catch (err) {
     console.error("[email] Erreur inattendue envoi notification:", err);
@@ -355,7 +355,7 @@ export async function sendInvitationEmail({
     if (error) {
       console.error("[email] Erreur envoi invitation:", error);
     } else {
-      console.log(`[email] Invitation envoyée à ${email}`);
+      // Invitation envoyée
     }
   } catch (err) {
     console.error("[email] Erreur inattendue envoi invitation:", err);
@@ -402,7 +402,7 @@ export async function sendReservationConfirmation({
 }: ReservationConfirmationParams): Promise<void> {
   // Pas d'email client → on skip
   if (!reservation.customer_email) {
-    console.log("[email] Pas d'email client — confirmation réservation ignorée");
+    // Pas d'email client — confirmation ignorée
     return;
   }
 
@@ -536,7 +536,7 @@ export async function sendReservationConfirmation({
     if (error) {
       console.error("[email] Erreur envoi confirmation réservation:", error);
     } else {
-      console.log(`[email] Confirmation réservation envoyée à ${reservation.customer_email}`);
+      // Confirmation réservation envoyée
     }
   } catch (err) {
     console.error("[email] Erreur inattendue envoi confirmation réservation:", err);
