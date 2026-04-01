@@ -6,7 +6,6 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MapPin, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { getNextAction, isTerminalStatus } from "@/lib/orders/status";
 import type { Order, OrderItem, OrderStatus, Customer } from "@/lib/supabase/types";
 
@@ -71,7 +70,6 @@ export function OrderCard({
   customers = [],
 }: OrderCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const items = (order.items || []) as OrderItem[];
   const itemsSummary = items.map((i) => `${i.quantity}x ${i.name}`).join(", ");
@@ -85,51 +83,42 @@ export function OrderCard({
     return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   }, [order.created_at]);
 
-  // ── MOBILE : rendu ultra compact ──
-  if (isMobile) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.02, duration: 0.2 }}
-      >
-        <div className={`border border-border border-l-[3px] ${isLivraison ? "border-l-green" : "border-l-blue"} rounded-xl p-2.5 bg-card ${isDone ? "opacity-50" : ""}`}>
-          {/* Ligne 1 : dot + heure + nom + total */}
-          <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDotColors[order.status] || "bg-muted-foreground/30"}`} />
-            <span className="text-xs font-mono text-muted-foreground">{createdTime}</span>
-            <Link href={`/orders/${order.id}`} className="text-sm font-medium text-foreground truncate flex-1">
-              {order.customer_name || "Client"}
-            </Link>
-            {order.total_amount != null && (
-              <span className="text-sm font-mono font-bold text-foreground flex-shrink-0">
-                {Number(order.total_amount).toFixed(0)}€
-              </span>
-            )}
-          </div>
-          {/* Ligne 2 : items */}
-          <p className="text-xs text-muted-foreground truncate mt-0.5 ml-5">{itemsSummary}</p>
-          {/* Ligne 3 : action */}
-          {next && onStatusChange && (
-            <div className="flex justify-end mt-1.5">
-              <button
-                disabled={isUpdating}
-                className="text-xs font-semibold text-violet hover:text-violet/80 hover:bg-violet/5 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (isUpdating) return;
-                  setIsUpdating(true);
-                  try { await onStatusChange(order.id, next.status); } finally { setIsUpdating(false); }
-                }}
-              >
-                {isUpdating ? "..." : next.label} →
-              </button>
-            </div>
+  // ── MOBILE : rendu ultra compact (via CSS, pas early return) ──
+  const mobileCard = (
+    <div className="md:hidden">
+      <div className={`border border-border border-l-[3px] ${isLivraison ? "border-l-green" : "border-l-blue"} rounded-xl p-2.5 bg-card ${isDone ? "opacity-50" : ""}`}>
+        <div className="flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDotColors[order.status] || "bg-muted-foreground/30"}`} />
+          <span className="text-xs font-mono text-muted-foreground">{createdTime}</span>
+          <Link href={`/orders/${order.id}`} className="text-sm font-medium text-foreground truncate flex-1">
+            {order.customer_name || "Client"}
+          </Link>
+          {order.total_amount != null && (
+            <span className="text-sm font-mono font-bold text-foreground flex-shrink-0">
+              {Number(order.total_amount).toFixed(0)}€
+            </span>
           )}
         </div>
-      </motion.div>
-    );
-  }
+        <p className="text-xs text-muted-foreground truncate mt-0.5 ml-5">{itemsSummary}</p>
+        {next && onStatusChange && (
+          <div className="flex justify-end mt-1.5">
+            <button
+              disabled={isUpdating}
+              className="text-xs font-semibold text-violet hover:text-violet/80 hover:bg-violet/5 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (isUpdating) return;
+                setIsUpdating(true);
+                try { await onStatusChange(order.id, next.status); } finally { setIsUpdating(false); }
+              }}
+            >
+              {isUpdating ? "..." : next.label} →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   // Type de commande en texte
   const orderTypeLabel = isLivraison ? "Livraison" : "À emporter";
@@ -152,11 +141,14 @@ export function OrderCard({
   const isUrgent = !isDone && order.status !== "annulee" && minutesElapsed > maxMinutes + 10;
 
   return (
+    <>
+    {mobileCard}
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03, duration: 0.25 }}
       layout
+      className="hidden md:block"
     >
       <div
         className={`border border-border border-l-[3px] ${typeAccent} rounded-2xl p-3 sm:p-4 md:p-5 bg-card hover:shadow-card-hover transition-shadow duration-200
@@ -318,5 +310,6 @@ export function OrderCard({
         </div>
       </div>
     </motion.div>
+    </>
   );
 }

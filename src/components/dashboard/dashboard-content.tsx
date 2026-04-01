@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { MobileDashboard } from "@/components/dashboard/mobile-dashboard";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -66,23 +65,10 @@ export function DashboardContent({
   restaurantId,
 }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState("commandes");
-  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const showOrders = plan === "orders" || plan === "pro";
   const showReservations = plan === "tables" || plan === "pro";
   const showTabs = plan === "pro";
-
-  // Mobile : afficher l'écran d'accueil optimisé
-  if (isMobile) {
-    return (
-      <MobileDashboard
-        stats={stats}
-        plan={plan}
-        reservationStats={reservationStats}
-        upcomingSummary={upcomingSummary}
-      />
-    );
-  }
 
   // Pour les plans sans tabs, déterminer quel contenu afficher
   const showOrdersContent = showTabs ? activeTab === "commandes" : showOrders;
@@ -92,6 +78,19 @@ export function DashboardContent({
   const reservationSparkline = reservationStats?.weeklyTrends.map((t) => t.count) || [];
 
   return (
+    <>
+    {/* Mobile : écran d'accueil dédié */}
+    <div className="md:hidden">
+      <MobileDashboard
+        stats={stats}
+        plan={plan}
+        reservationStats={reservationStats}
+        upcomingSummary={upcomingSummary}
+      />
+    </div>
+
+    {/* Desktop/Tablette : dashboard complet */}
+    <div className="hidden md:block">
     <PageWrapper>
       {/* Indicateur temps réel — polling nouvelles commandes/réservations */}
       <DashboardLiveIndicator restaurantId={restaurantId} />
@@ -155,6 +154,8 @@ export function DashboardContent({
         />
       )}
     </PageWrapper>
+    </div>
+    </>
   );
 }
 
