@@ -112,14 +112,15 @@ export function MobileBottomNav({ plan = "orders" }: { plan?: SubscriptionPlan }
                 href={item.href}
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 py-1 px-3 min-w-[56px] transition-colors ${
+                onClick={() => { try { navigator?.vibrate?.(5); } catch {} }}
+                className={`relative flex flex-col items-center gap-0.5 py-1 px-3 min-w-[56px] transition-colors active:scale-95 ${
                   isActive
                     ? "text-violet"
                     : "text-muted-foreground"
                 }`}
               >
                 <item.icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.2 : 1.8} />
-                <span className={`text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}>
+                <span className={`text-[11px] ${isActive ? "font-semibold" : "font-medium"}`}>
                   {item.label}
                 </span>
               </Link>
