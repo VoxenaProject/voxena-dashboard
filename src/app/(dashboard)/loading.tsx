@@ -3,15 +3,15 @@ import { Card } from "@/components/ui/card";
 
 export default function DashboardLoading() {
   return (
-    <div className="p-6 lg:px-8 lg:py-6">
+    <div className="p-3 sm:p-4 md:p-6 lg:px-8 lg:py-6">
       {/* Header */}
-      <div className="mb-8">
-        <Skeleton className="h-8 w-48 mb-2" />
-        <Skeleton className="h-4 w-64" />
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <Skeleton className="h-7 sm:h-8 w-36 sm:w-48 mb-2" />
+        <Skeleton className="h-3 sm:h-4 w-48 sm:w-64" />
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="p-5">
             <Skeleton className="w-9 h-9 rounded-xl mb-3" />
@@ -21,8 +21,8 @@ export default function DashboardLoading() {
         ))}
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      {/* Charts — masqué sur mobile */}
+      <div className="hidden sm:grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-8">
         <Card className="lg:col-span-2 p-6">
           <Skeleton className="h-4 w-40 mb-4" />
           <Skeleton className="h-[240px] w-full rounded" />

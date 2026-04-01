@@ -4,17 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* PWA — Safe area + mobile app-like feel */
+/* PWA — Mobile app-like feel */
 html {
   overscroll-behavior: none;
 }
-body {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-/* Bottom nav spacing on mobile */
+/* Safe area uniquement sur la bottom nav, pas sur body */
+/* Bottom nav spacing sur mobile */
 @media (max-width: 767px) {
   .main-content-area {
     padding-bottom: 72px;

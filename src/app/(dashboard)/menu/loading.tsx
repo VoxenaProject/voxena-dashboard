@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 
 export default function MenuLoading() {
   return (
-    <div className="p-6 lg:px-8 lg:py-6">
+    <div className="p-3 sm:p-4 md:p-6 lg:px-8 lg:py-6">
       <div className="mb-8">
         <Skeleton className="h-8 w-24 mb-2" />
         <Skeleton className="h-4 w-64" />

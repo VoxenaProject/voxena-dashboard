@@ -47,7 +47,7 @@ export default async function OrderDetailPage({ params }: Props) {
   const typedEvents = (events as OrderEvent[]) || [];
 
   return (
-    <div className="p-6 lg:px-8 lg:py-6 max-w-4xl" style={{ animation: "fade-in 0.35s ease-out" }}>
+    <div className="p-3 sm:p-4 md:p-6 lg:px-8 lg:py-6 max-w-4xl" style={{ animation: "fade-in 0.35s ease-out" }}>
       {/* En-tête */}
       <div className="mb-6">
         <Link
