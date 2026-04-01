@@ -39,6 +39,8 @@ export default function RootLayout({
     <html lang="fr" className={`${jetbrainsMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/app-icons/icon.svg" />
+        {/* Critical CSS : cache le desktop sur mobile AVANT que Tailwind se charge (évite le flash) */}
+        <style dangerouslySetInnerHTML={{ __html: `@media(max-width:767px){.hidden.md\\:block,.hidden.md\\:flex{display:none!important}}@media(min-width:768px){.md\\:hidden{display:none!important}}` }} />
         {/* Script pour appliquer le thème sombre avant le rendu (évite le flash blanc) */}
         <script
           dangerouslySetInnerHTML={{
