@@ -23,7 +23,7 @@ export default async function SettingsPage() {
   return (
     <>
       {/* Mobile */}
-      <div className="md:hidden px-4 pt-2 pb-4">
+      <div className="md:hidden px-4 pt-2 pb-24">
         <h1 className="text-lg font-heading font-bold text-foreground mb-4">Paramètres</h1>
         {data ? (
           <RestaurantSettings restaurant={data as Restaurant} />

@@ -66,7 +66,7 @@ export function MobileReservationList({ initialReservations, restaurantId, table
   }
 
   return (
-    <div className="px-4 pt-2 pb-4" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
+    <div className="px-4 pt-2 pb-24" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
       {pull.pullDistance > 0 && (
         <div className="flex justify-center mb-2 transition-all" style={{ height: pull.pullDistance * 0.4 }}>
           <Loader2 className={`w-5 h-5 text-violet ${pull.refreshing ? "animate-spin" : ""}`} style={{ opacity: Math.min(1, pull.pullDistance / 80) }} />

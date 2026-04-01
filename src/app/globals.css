@@ -10,14 +10,7 @@ html, body {
 }
 /* Safe area uniquement sur la bottom nav, pas sur body */
 /* Bottom nav spacing sur mobile */
-@media (max-width: 767px) {
-  .main-content-area::after {
-    content: '';
-    display: block;
-    height: 80px;
-    flex-shrink: 0;
-  }
-}
+/* Bottom nav spacing géré par pb-24 directement sur les composants mobile */
 
 /* Mobile animations */
 @keyframes fade-in-up {

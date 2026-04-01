@@ -58,7 +58,7 @@ export function MobileMenu({ menus, menuItems, restaurantId }: Props) {
   }
 
   return (
-    <div className="px-4 pt-2 pb-4">
+    <div className="px-4 pt-2 pb-24">
       <h1 className="text-lg font-heading font-bold text-foreground mb-4">🍽️ Menu</h1>
 
       {menus.length === 0 ? (

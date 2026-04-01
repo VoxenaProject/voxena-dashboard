@@ -64,7 +64,7 @@ export function MobileOrderList({ initialOrders, restaurantId, customers, select
   } else groups.push({ label: tabs.find((t) => t.key === activeTab)?.label || "", key: activeTab, items: displayed });
 
   return (
-    <div className="px-4 pt-2 pb-4" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
+    <div className="px-4 pt-2 pb-24" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
       {/* Pull-to-refresh indicator */}
       {pull.pullDistance > 0 && (
         <div className="flex justify-center mb-2 transition-all" style={{ height: pull.pullDistance * 0.4 }}>

@@ -71,7 +71,7 @@ export function MobileDashboard({ stats, plan, reservationStats, upcomingSummary
   }
 
   return (
-    <div className="px-4 pt-3 pb-4">
+    <div className="px-4 pt-3 pb-24">
       {/* Header chaleureux */}
       <div className="mb-5">
         <h1 className="text-xl font-heading font-bold text-foreground">{greeting}</h1>
