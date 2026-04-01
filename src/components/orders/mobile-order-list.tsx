@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, X, ChevronLeft, ChevronRight, ShoppingBag, Truck, Package } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight, ShoppingBag, Truck, Package, Loader2 } from "lucide-react";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
+import { usePullRefresh } from "@/hooks/use-pull-refresh";
 import { getNextAction, isTerminalStatus } from "@/lib/orders/status";
 import type { Order, OrderItem, OrderStatus, Customer } from "@/lib/supabase/types";
 
@@ -33,6 +34,7 @@ export function MobileOrderList({ initialOrders, restaurantId, customers, select
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("active");
   const { orders, updateOrderStatus } = useRealtimeOrders(initialOrders, restaurantId, selectedDate);
+  const pull = usePullRefresh();
 
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
   const dateLabel = isToday ? "Aujourd'hui" : new Date(selectedDate + "T12:00:00").toLocaleDateString("fr-BE", { weekday: "short", day: "numeric", month: "short" });
@@ -62,7 +64,13 @@ export function MobileOrderList({ initialOrders, restaurantId, customers, select
   } else groups.push({ label: tabs.find((t) => t.key === activeTab)?.label || "", key: activeTab, items: displayed });
 
   return (
-    <div className="px-4 pt-2 pb-4">
+    <div className="px-4 pt-2 pb-4" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
+      {/* Pull-to-refresh indicator */}
+      {pull.pullDistance > 0 && (
+        <div className="flex justify-center mb-2 transition-all" style={{ height: pull.pullDistance * 0.4 }}>
+          <Loader2 className={`w-5 h-5 text-violet ${pull.refreshing ? "animate-spin" : ""}`} style={{ opacity: Math.min(1, pull.pullDistance / 80) }} />
+        </div>
+      )}
       {/* Date */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={() => navDate(-1)} className="h-10 w-10 flex items-center justify-center rounded-xl active:bg-muted/50 -ml-2"><ChevronLeft className="w-5 h-5 text-muted-foreground" /></button>

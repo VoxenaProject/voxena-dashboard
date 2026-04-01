@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, CalendarDays, Check, X as XIcon, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Check, X as XIcon, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { usePullRefresh } from "@/hooks/use-pull-refresh";
 import type { Reservation, FloorTable, ReservationStatus, Customer } from "@/lib/supabase/types";
 
 interface Props { initialReservations: Reservation[]; restaurantId: string; tables: FloorTable[]; selectedDate: string; customers: Customer[] }
@@ -26,6 +27,7 @@ export function MobileReservationList({ initialReservations, restaurantId, table
   const [activeTab, setActiveTab] = useState("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const pull = usePullRefresh();
 
   const active = reservations.filter((r) => !["annulee", "no_show"].includes(r.status));
   const totalResas = active.length;
@@ -64,7 +66,12 @@ export function MobileReservationList({ initialReservations, restaurantId, table
   }
 
   return (
-    <div className="px-4 pt-2 pb-4">
+    <div className="px-4 pt-2 pb-4" onTouchStart={pull.onTouchStart} onTouchMove={pull.onTouchMove} onTouchEnd={pull.onTouchEnd}>
+      {pull.pullDistance > 0 && (
+        <div className="flex justify-center mb-2 transition-all" style={{ height: pull.pullDistance * 0.4 }}>
+          <Loader2 className={`w-5 h-5 text-violet ${pull.refreshing ? "animate-spin" : ""}`} style={{ opacity: Math.min(1, pull.pullDistance / 80) }} />
+        </div>
+      )}
       {/* Date */}
       <div className="flex items-center justify-between mb-2">
         <button onClick={() => navDate(-1)} className="h-10 w-10 flex items-center justify-center rounded-xl active:bg-muted/50 -ml-2"><ChevronLeft className="w-5 h-5 text-muted-foreground" /></button>

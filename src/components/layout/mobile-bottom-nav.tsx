@@ -32,7 +32,7 @@ const moreItems = [
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] },
 ];
 
-export function MobileBottomNav({ plan = "orders" }: { plan?: SubscriptionPlan }) {
+export function MobileBottomNav({ plan = "orders", pendingOrders = 0, pendingResas = 0 }: { plan?: SubscriptionPlan; pendingOrders?: number; pendingResas?: number }) {
   const pathname = usePathname();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -119,7 +119,15 @@ export function MobileBottomNav({ plan = "orders" }: { plan?: SubscriptionPlan }
                     : "text-muted-foreground"
                 }`}
               >
-                <item.icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                <div className="relative">
+                  <item.icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                  {item.href === "/orders" && pendingOrders > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1">{pendingOrders}</span>
+                  )}
+                  {item.href === "/reservations" && pendingResas > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 bg-amber-500 text-white text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1">{pendingResas}</span>
+                  )}
+                </div>
                 <span className={`text-[11px] ${isActive ? "font-semibold" : "font-medium"}`}>
                   {item.label}
                 </span>

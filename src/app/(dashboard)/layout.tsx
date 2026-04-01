@@ -17,17 +17,22 @@ export default async function DashboardLayout({
   // Récupérer le statut de l'agent et le plan d'abonnement
   let agentStatus = "active";
   let subscriptionPlan: SubscriptionPlan = "orders";
+  let pendingOrders = 0;
+  let pendingResas = 0;
   if (restaurantId) {
     const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("restaurants")
-      .select("agent_status, subscription_plan")
-      .eq("id", restaurantId)
-      .single();
+    const today = new Date().toISOString().split("T")[0];
+    const [{ data }, { count: oc }, { count: rc }] = await Promise.all([
+      supabase.from("restaurants").select("agent_status, subscription_plan").eq("id", restaurantId).single(),
+      supabase.from("orders").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId).eq("status", "nouvelle").gte("created_at", `${today}T00:00:00`),
+      supabase.from("reservations").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId).eq("status", "en_attente").eq("date", today),
+    ]);
     if (data) {
       agentStatus = data.agent_status;
       subscriptionPlan = (data.subscription_plan as SubscriptionPlan) || "orders";
     }
+    pendingOrders = oc || 0;
+    pendingResas = rc || 0;
   }
 
   return (
@@ -41,7 +46,7 @@ export default async function DashboardLayout({
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
-      <MobileBottomNav plan={subscriptionPlan} />
+      <MobileBottomNav plan={subscriptionPlan} pendingOrders={pendingOrders} pendingResas={pendingResas} />
       <GuidedTour />
     </div>
   );

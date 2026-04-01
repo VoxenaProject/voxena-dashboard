@@ -1,31 +1,19 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
-
 export default function OrdersLoading() {
   return (
-    <div className="p-3 sm:p-4 md:p-6 lg:px-8 lg:py-6">
-      <div className="mb-8">
-        <Skeleton className="h-8 w-40 mb-2" />
-        <Skeleton className="h-4 w-56" />
+    <>
+      {/* Mobile skeleton */}
+      <div className="md:hidden px-4 pt-2 pb-4 animate-pulse">
+        <div className="flex items-center justify-between mb-3"><div className="h-10 w-10 bg-muted/30 rounded-xl" /><div className="h-5 w-24 bg-muted/30 rounded-lg" /><div className="h-10 w-10 bg-muted/30 rounded-xl" /></div>
+        <div className="flex gap-2 mb-3">{[1,2,3,4].map(i => <div key={i} className="h-9 w-20 bg-muted/20 rounded-full flex-shrink-0" />)}</div>
+        <div className="h-11 bg-muted/15 rounded-xl mb-4" />
+        <div className="space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-20 bg-muted/15 rounded-xl" />)}</div>
       </div>
-      <Skeleton className="h-10 w-96 rounded-lg mb-6" />
-      <div className="space-y-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i} className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                </div>
-                <Skeleton className="h-3 w-48 mb-2" />
-                <Skeleton className="h-3 w-64" />
-              </div>
-              <Skeleton className="h-8 w-20 rounded-md" />
-            </div>
-          </Card>
-        ))}
+      {/* Desktop skeleton */}
+      <div className="hidden md:block p-6 lg:px-8 lg:py-6 animate-pulse">
+        <div className="flex justify-between mb-8"><div><div className="h-8 w-40 bg-muted/30 rounded-lg mb-2" /><div className="h-4 w-56 bg-muted/20 rounded-lg" /></div><div className="h-10 w-32 bg-muted/20 rounded-lg" /></div>
+        <div className="h-10 w-96 bg-muted/15 rounded-lg mb-6" />
+        <div className="space-y-3">{[1,2,3,4,5,6].map(i => <div key={i} className="h-24 bg-muted/10 rounded-2xl" />)}</div>
       </div>
-    </div>
+    </>
   );
 }
