@@ -51,7 +51,7 @@ export function MobileMenu({ menus, menuItems, restaurantId }: Props) {
       });
       if (res.ok) {
         item.is_available = !item.is_available;
-        toast.success(item.is_available ? "Disponible" : "Indisponible");
+        toast.success(item.is_available ? "✅ Disponible" : "⏸️ Indisponible");
       }
     } catch { toast.error("Erreur"); }
     finally { setTogglingId(null); }
@@ -59,7 +59,7 @@ export function MobileMenu({ menus, menuItems, restaurantId }: Props) {
 
   return (
     <div className="px-4 pt-2 pb-4">
-      <h1 className="text-lg font-heading font-bold text-foreground mb-4">Menu</h1>
+      <h1 className="text-lg font-heading font-bold text-foreground mb-4">🍽️ Menu</h1>
 
       {menus.length === 0 ? (
         <div className="text-center py-16">

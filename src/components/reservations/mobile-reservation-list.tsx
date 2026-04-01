@@ -10,10 +10,10 @@ import type { Reservation, FloorTable, ReservationStatus, Customer } from "@/lib
 interface Props { initialReservations: Reservation[]; restaurantId: string; tables: FloorTable[]; selectedDate: string; customers: Customer[] }
 
 const tabs = [
-  { key: "all", label: "Toutes" },
-  { key: "en_attente", label: "À confirmer" },
-  { key: "confirmee", label: "Confirmées" },
-  { key: "assise", label: "Assises" },
+  { key: "all", label: "📋 Toutes" },
+  { key: "en_attente", label: "⏳ À confirmer" },
+  { key: "confirmee", label: "✅ Confirmées" },
+  { key: "assise", label: "🪑 Assises" },
 ];
 const dotColor: Record<string, string> = { en_attente: "bg-amber-500", confirmee: "bg-green", assise: "bg-blue", terminee: "bg-muted-foreground/20", annulee: "bg-red-500", no_show: "bg-red-700", liste_attente: "bg-violet" };
 const borderColor: Record<string, string> = { en_attente: "border-l-amber-500", confirmee: "border-l-green", assise: "border-l-blue" };
@@ -45,10 +45,10 @@ export function MobileReservationList({ initialReservations, restaurantId, table
     const c = filtered.filter((r) => r.status === "confirmee");
     const s = filtered.filter((r) => r.status === "assise");
     const d = filtered.filter((r) => r.status === "terminee");
-    if (p.length) groups.push({ label: "À confirmer", key: "en_attente", items: p });
-    if (c.length) groups.push({ label: "Confirmées", key: "confirmee", items: c });
-    if (s.length) groups.push({ label: "Assises", key: "assise", items: s });
-    if (d.length) groups.push({ label: "Terminées", key: "terminee", items: d });
+    if (p.length) groups.push({ label: "⏳ À confirmer", key: "en_attente", items: p });
+    if (c.length) groups.push({ label: "✅ Confirmées", key: "confirmee", items: c });
+    if (s.length) groups.push({ label: "🪑 Assises", key: "assise", items: s });
+    if (d.length) groups.push({ label: "👋 Terminées", key: "terminee", items: d });
   } else groups.push({ label: tabs.find((t) => t.key === activeTab)?.label || "", key: activeTab, items: filtered });
 
   async function handleStatus(id: string, status: ReservationStatus) {
@@ -58,7 +58,7 @@ export function MobileReservationList({ initialReservations, restaurantId, table
       const res = await fetch("/api/reservations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
       if (res.ok) {
         setReservations((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
-        toast.success(status === "confirmee" ? "Confirmée !" : status === "assise" ? "Installé !" : status === "annulee" ? "Annulée" : "Mis à jour");
+        toast.success(status === "confirmee" ? "✅ Confirmée !" : status === "assise" ? "🪑 Installé !" : status === "annulee" ? "❌ Annulée" : "Mis à jour");
         setExpandedId(null);
       } else toast.error("Erreur");
     } catch { toast.error("Erreur réseau"); }
@@ -81,9 +81,9 @@ export function MobileReservationList({ initialReservations, restaurantId, table
 
       {/* Stats */}
       <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-3">
-        <span><strong className="text-foreground font-mono text-sm">{totalResas}</strong> résas</span>
+        <span>📅 <strong className="text-foreground font-mono text-sm">{totalResas}</strong> résas</span>
         <span className="text-border">·</span>
-        <span><strong className="text-foreground font-mono text-sm">{totalCovers}</strong> couverts</span>
+        <span>👥 <strong className="text-foreground font-mono text-sm">{totalCovers}</strong> couverts</span>
       </div>
 
       {/* Tabs */}
@@ -180,9 +180,11 @@ export function MobileReservationList({ initialReservations, restaurantId, table
 
       {filtered.length === 0 && (
         <div className="text-center py-20">
-          <CalendarDays className="w-10 h-10 mx-auto mb-3 text-muted-foreground/15" />
+          <span className="text-4xl block mb-3">
+            {activeTab === "en_attente" ? "🎉" : activeTab === "confirmee" ? "📭" : activeTab === "assise" ? "🍽️" : "😌"}
+          </span>
           <p className="text-sm font-medium text-muted-foreground">
-            {activeTab === "en_attente" ? "Tout est confirmé !" : activeTab === "confirmee" ? "Pas de réservation confirmée" : activeTab === "assise" ? "Personne à table" : "Aucune réservation"}
+            {activeTab === "en_attente" ? "Tout est confirmé, nickel !" : activeTab === "confirmee" ? "Pas encore de confirmation" : activeTab === "assise" ? "Personne à table pour l'instant" : "Aucune réservation aujourd'hui"}
           </p>
           <p className="text-xs text-muted-foreground/50 mt-1">Les réservations apparaissent en temps réel</p>
         </div>

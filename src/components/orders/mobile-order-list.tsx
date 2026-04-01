@@ -12,10 +12,10 @@ import type { Order, OrderItem, OrderStatus, Customer } from "@/lib/supabase/typ
 interface Props { initialOrders: Order[]; restaurantId: string; customers: Customer[]; selectedDate: string }
 
 const tabs = [
-  { key: "active", label: "En cours" },
-  { key: "nouvelle", label: "Nouvelles" },
-  { key: "prete", label: "Prêtes" },
-  { key: "done", label: "Terminées" },
+  { key: "active", label: "🔥 En cours" },
+  { key: "nouvelle", label: "🆕 Nouvelles" },
+  { key: "prete", label: "✅ Prêtes" },
+  { key: "done", label: "📦 Terminées" },
 ];
 
 const dotColor: Record<string, string> = {
@@ -57,10 +57,10 @@ export function MobileOrderList({ initialOrders, restaurantId, customers, select
     const p = displayed.filter((o) => o.status === "en_preparation");
     const r = displayed.filter((o) => o.status === "prete");
     const l = displayed.filter((o) => o.status === "en_livraison");
-    if (n.length) groups.push({ label: "Nouvelles", key: "nouvelle", items: n });
-    if (p.length) groups.push({ label: "En préparation", key: "en_preparation", items: p });
-    if (r.length) groups.push({ label: "Prêtes", key: "prete", items: r });
-    if (l.length) groups.push({ label: "En livraison", key: "en_livraison", items: l });
+    if (n.length) groups.push({ label: "🆕 Nouvelles", key: "nouvelle", items: n });
+    if (p.length) groups.push({ label: "🔥 En préparation", key: "en_preparation", items: p });
+    if (r.length) groups.push({ label: "✅ Prêtes", key: "prete", items: r });
+    if (l.length) groups.push({ label: "🚗 En livraison", key: "en_livraison", items: l });
   } else groups.push({ label: tabs.find((t) => t.key === activeTab)?.label || "", key: activeTab, items: displayed });
 
   return (
@@ -115,9 +115,11 @@ export function MobileOrderList({ initialOrders, restaurantId, customers, select
 
       {displayed.length === 0 && (
         <div className="text-center py-20">
-          <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground/15" />
+          <span className="text-4xl block mb-3">
+            {activeTab === "active" ? "🎉" : activeTab === "nouvelle" ? "😌" : activeTab === "prete" ? "🍽️" : "📭"}
+          </span>
           <p className="text-sm font-medium text-muted-foreground">
-            {activeTab === "active" ? "Tout est géré !" : activeTab === "nouvelle" ? "Pas de nouvelle commande" : activeTab === "prete" ? "Aucune commande prête" : "Pas de commande terminée"}
+            {activeTab === "active" ? "Tout est géré, bravo !" : activeTab === "nouvelle" ? "Pas de nouvelle commande" : activeTab === "prete" ? "Rien à récupérer" : "Pas encore de commande terminée"}
           </p>
           <p className="text-xs text-muted-foreground/50 mt-1">Les commandes apparaissent en temps réel</p>
         </div>
