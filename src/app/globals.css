@@ -11,8 +11,11 @@ html, body {
 /* Safe area uniquement sur la bottom nav, pas sur body */
 /* Bottom nav spacing sur mobile */
 @media (max-width: 767px) {
-  .main-content-area {
-    padding-bottom: 80px;
+  .main-content-area::after {
+    content: '';
+    display: block;
+    height: 80px;
+    flex-shrink: 0;
   }
 }
 
