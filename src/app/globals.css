@@ -4,13 +4,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* PWA — Mobile app-like feel */
-html, body {
-  overscroll-behavior-y: contain;
-}
-/* Safe area uniquement sur la bottom nav, pas sur body */
-/* Bottom nav spacing sur mobile */
-/* Bottom nav spacing géré par pb-24 directement sur les composants mobile */
+/* PWA — Mobile : scroll naturel, pas de overscroll hack */
+/* Desktop garde le overflow-hidden via les classes Tailwind */
 
 /* Mobile animations */
 @keyframes fade-in-up {

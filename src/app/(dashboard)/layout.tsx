@@ -37,13 +37,13 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="md:flex md:h-screen md:overflow-hidden">
       <SidebarResto plan={subscriptionPlan} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col md:overflow-hidden">
         <div className="hidden md:block">
           <TopBar restaurantId={restaurantId} initialAgentStatus={agentStatus} />
         </div>
-        <main className="flex-1 overflow-y-auto bg-background main-content-area">
+        <main className="flex-1 md:overflow-y-auto bg-background">
           <ErrorBoundary>
             <PageTransition>{children}</PageTransition>
           </ErrorBoundary>
