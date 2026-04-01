@@ -288,16 +288,8 @@ export function SidebarResto({ plan = "orders" }: { plan?: SubscriptionPlan }) {
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   if (isMobile) {
-    return (
-      <Sheet>
-        <SheetTrigger className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-[#0E1333] text-white/80 shadow-lg lg:hidden">
-          <Menu className="w-5 h-5" />
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 bg-[#0E1333] border-none">
-          <SidebarContent collapsed={false} plan={plan} />
-        </SheetContent>
-      </Sheet>
-    );
+    // Sur mobile, la navigation est gérée par MobileBottomNav
+    return null;
   }
 
   return (

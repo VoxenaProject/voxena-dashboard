@@ -153,9 +153,9 @@ function OrdersSection({
   chartData: { label: string; revenue: number; orders: number }[];
 }) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-4 sm:space-y-6 md:space-y-10">
       {/* KPI Cards commandes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5" data-tour="kpi-cards">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-5" data-tour="kpi-cards">
         <KpiCard
           title="Commandes aujourd'hui"
           value={stats.todayCount}
@@ -199,8 +199,8 @@ function OrdersSection({
         />
       </div>
 
-      {/* Charts section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Charts section — masqué sur mobile */}
+      <div className="hidden sm:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <motion.div
           className="md:col-span-1 lg:col-span-2"
           initial={{ opacity: 0, y: 16 }}
@@ -332,14 +332,14 @@ function ReservationsSection({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-4 sm:space-y-6 md:space-y-10">
       {/* KPI Cards réservations */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-5">
           <KpiCard
             title="Réservations aujourd'hui"
             value={reservationStats.todayReservations}

@@ -47,32 +47,32 @@ export function KpiCard({
       transition={{ delay: delay * 0.05, duration: 0.3 }}
       className="h-full"
     >
-      <div className="border border-border rounded-2xl p-6 h-full flex flex-col bg-card hover:shadow-card-hover transition-shadow duration-200">
+      <div className="border border-border rounded-2xl p-3 sm:p-4 md:p-6 h-full flex flex-col bg-card hover:shadow-card-hover transition-shadow duration-200">
         {/* Icône + titre sur la même ligne */}
         <div className="flex items-center">
-          <div className={`w-10 h-10 rounded-full ${accent.iconBg} flex items-center justify-center`}>
-            <Icon className={`w-5 h-5 ${accent.iconText}`} />
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${accent.iconBg} flex items-center justify-center`}>
+            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${accent.iconText}`} />
           </div>
-          <span className="text-xs text-muted-foreground font-normal ml-3">
+          <span className="text-[11px] sm:text-xs text-muted-foreground font-normal ml-2 sm:ml-3">
             {title}
           </span>
         </div>
 
         {/* Valeur */}
-        <div className="mt-4">
+        <div className="mt-2 sm:mt-4">
           <AnimatedCounter
             value={value}
             prefix={prefix}
             suffix={suffix}
             decimals={decimals}
-            className="text-2xl font-semibold tracking-tight"
+            className="text-xl sm:text-2xl font-semibold tracking-tight"
           />
         </div>
 
         {/* Tendance */}
         {trend && (
           <p
-            className={`text-xs mt-1 ${
+            className={`text-[10px] sm:text-xs mt-0.5 sm:mt-1 ${
               trend.isPositive ? "text-green" : "text-red-500"
             }`}
           >
@@ -82,9 +82,9 @@ export function KpiCard({
 
         <div className="flex-1" />
 
-        {/* Sparkline */}
+        {/* Sparkline — masqué sur mobile */}
         {sparklineData && sparklineData.length > 1 ? (
-          <div className="mt-3 -mx-1 -mb-1">
+          <div className="mt-2 sm:mt-3 -mx-1 -mb-1 hidden sm:block">
             <Sparkline
               data={sparklineData}
               color={accent.sparkline}
@@ -92,7 +92,7 @@ export function KpiCard({
             />
           </div>
         ) : (
-          <div className="mt-3 h-[28px]" />
+          <div className="mt-2 sm:mt-3 h-0 sm:h-[28px]" />
         )}
       </div>
     </motion.div>

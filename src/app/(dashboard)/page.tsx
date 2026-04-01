@@ -63,7 +63,7 @@ export default async function DashboardHome({ searchParams }: Props) {
   return (
     <>
       {/* Sélecteur de date en haut du tableau de bord */}
-      <div className="flex items-center justify-between px-6 lg:px-8 pt-6">
+      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8 pt-3 sm:pt-4 md:pt-6">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">
             Tableau de bord

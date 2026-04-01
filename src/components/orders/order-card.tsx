@@ -111,7 +111,7 @@ export function OrderCard({
       layout
     >
       <div
-        className={`border border-border border-l-[3px] ${typeAccent} rounded-2xl p-5 bg-card hover:shadow-card-hover transition-shadow duration-200
+        className={`border border-border border-l-[3px] ${typeAccent} rounded-2xl p-3 sm:p-4 md:p-5 bg-card hover:shadow-card-hover transition-shadow duration-200
           ${isNew ? "ring-1 ring-violet/30" : ""}
           ${isDone ? "opacity-60" : ""}
           ${isUrgent ? "bg-red-500/[0.02]" : isLate ? "bg-amber-500/[0.02]" : ""}
@@ -147,12 +147,12 @@ export function OrderCard({
             #{order.id.slice(0, 4).toUpperCase()}
           </span>
         </div>
-        <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+        <p className="text-[11px] text-muted-foreground/50 mt-0.5 hidden sm:block">
           {minutesElapsed < 1 ? "À l'instant" : minutesElapsed < 60 ? `Il y a ${minutesElapsed} min` : `Passée à ${createdTime}`}
         </p>
 
         {/* Ligne 2 : nom client + total */}
-        <div className="mt-3 flex justify-between items-baseline">
+        <div className="mt-2 sm:mt-3 flex justify-between items-baseline">
           <Link href={`/orders/${order.id}`} className="min-w-0">
             <span className="text-base font-medium truncate">
               {order.customer_name || "Client anonyme"}
@@ -173,9 +173,9 @@ export function OrderCard({
 
           {/* Adresse de livraison — bien visible */}
           {isLivraison && order.delivery_address && (
-            <div className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg bg-green/[0.04] border border-green/10">
+            <div className="flex items-start gap-2 mt-1.5 sm:mt-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-green/[0.04] border border-green/10">
               <MapPin className="w-3.5 h-3.5 text-green flex-shrink-0 mt-0.5" />
-              <span className="text-sm text-foreground/80">{order.delivery_address}</span>
+              <span className="text-xs sm:text-sm text-foreground/80 truncate sm:whitespace-normal">{order.delivery_address}</span>
             </div>
           )}
 
@@ -214,7 +214,7 @@ export function OrderCard({
           const timeProgress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
           return (
-            <div className={`mt-3 px-3 py-2.5 rounded-xl ${isScheduled ? "bg-amber-500/[0.04] border border-amber-200/30" : "bg-muted/30"}`}>
+            <div className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1.5 sm:py-2.5 rounded-xl hidden sm:block ${isScheduled ? "bg-amber-500/[0.04] border border-amber-200/30" : "bg-muted/30"}`}>
               <div className="flex items-center justify-between">
                 <span className={`text-[11px] font-medium ${isScheduled ? "text-amber-600" : "text-muted-foreground"}`}>
                   {etaLabel}
@@ -238,7 +238,7 @@ export function OrderCard({
         })()}
 
         {/* Ligne 4 : statut + action */}
-        <div className="mt-4 flex justify-between items-center">
+        <div className="mt-2 sm:mt-4 flex justify-between items-center">
           <div className="flex items-center">
             <span
               className={`w-2 h-2 rounded-full ${statusDotColors[order.status] || "bg-muted-foreground/30"}`}

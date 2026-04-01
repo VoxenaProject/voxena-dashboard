@@ -718,7 +718,7 @@ function ReservationCard({
       }}
       exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
       className={`
-        border rounded-2xl p-5 transition-shadow duration-200 cursor-pointer
+        border rounded-2xl p-3 sm:p-4 md:p-5 transition-shadow duration-200 cursor-pointer
         hover:shadow-card-hover
         ${isNew ? "ring-1 ring-violet/30" : ""}
         ${isPending ? "border-amber-200" : "border-border"}
@@ -747,7 +747,7 @@ function ReservationCard({
       </div>
 
       {/* Row 2 — nom + statut */}
-      <div className="mt-3 flex justify-between items-center">
+      <div className="mt-1.5 sm:mt-3 flex justify-between items-center">
         <span className={`text-base font-medium ${status.strikethrough ? "line-through opacity-60" : ""}`}>
           {reservation.customer_name}
         </span>
@@ -759,8 +759,8 @@ function ReservationCard({
         </span>
       </div>
 
-      {/* Row 3 — téléphone + historique client */}
-      <div className="mt-1 flex items-center gap-3">
+      {/* Row 3 — téléphone + historique client (masqué mobile) */}
+      <div className="mt-1 hidden sm:flex items-center gap-3">
         {reservation.customer_phone && (
           <span className="text-xs text-muted-foreground/60 flex items-center gap-1">
             <Phone className="w-3 h-3" />
@@ -792,8 +792,8 @@ function ReservationCard({
 
       {/* Row 4 — occasion, préférences, notes, actions */}
       {hasBottomRow && (
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="mt-1.5 sm:mt-3 flex items-center justify-between">
+          <div className="hidden sm:flex items-center gap-3 min-w-0">
             {occasion && (
               <span className="text-xs text-muted-foreground">
                 {occasion.emoji} {occasion.label}

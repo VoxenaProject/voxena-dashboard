@@ -21,14 +21,14 @@ import type { SubscriptionPlan } from "@/lib/supabase/types";
 const mainItems = [
   { href: "/", label: "Accueil", icon: LayoutDashboard, plans: ["orders", "tables", "pro"] },
   { href: "/orders", label: "Commandes", icon: ShoppingBag, plans: ["orders", "pro"] },
-  { href: "/kitchen", label: "Cuisine", icon: ChefHat, plans: ["orders", "pro"] },
   { href: "/reservations", label: "Résas", icon: CalendarDays, plans: ["tables", "pro"] },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, plans: ["orders", "tables", "pro"] },
 ];
 
 const moreItems = [
   { href: "/menu", label: "Menu", icon: UtensilsCrossed, plans: ["orders", "pro"] },
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, plans: ["orders", "tables", "pro"] },
+  { href: "/kitchen", label: "Cuisine", icon: ChefHat, plans: ["orders", "pro"] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] },
 ];
 
