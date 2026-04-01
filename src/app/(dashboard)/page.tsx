@@ -23,12 +23,13 @@ export default async function DashboardHome({ searchParams }: Props) {
   // Récupérer les infos du restaurant (plan + telnyx)
   const { data: restaurantData } = await supabase
     .from("restaurants")
-    .select("telnyx_phone, subscription_plan")
+    .select("name, telnyx_phone, subscription_plan")
     .eq("id", restaurantId)
     .single();
 
   const telnyxPhone = restaurantData?.telnyx_phone || null;
   const plan: SubscriptionPlan = restaurantData?.subscription_plan || "orders";
+  const restaurantName = restaurantData?.name || "";
 
   // Date sélectionnée ou aujourd'hui
   const selectedDate = date || new Date().toISOString().split("T")[0];
@@ -85,6 +86,7 @@ export default async function DashboardHome({ searchParams }: Props) {
         reservationStats={reservationStats}
         upcomingSummary={upcomingSummary}
         restaurantId={restaurantId}
+        restaurantName={restaurantName}
       />
     </>
   );

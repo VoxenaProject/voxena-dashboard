@@ -603,7 +603,7 @@ export function RestaurantSettings({
   // ── Rendu ──
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
       {/* ═══ MON RESTAURANT ═══ */}
       <SettingsGroup label="Mon restaurant">
         <SettingsRow

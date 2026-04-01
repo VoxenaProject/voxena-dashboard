@@ -24,7 +24,7 @@ export default async function DashboardLayout({
     const supabase = createServiceClient();
     const today = new Date().toISOString().split("T")[0];
     const [{ data }, { count: oc }, { count: rc }] = await Promise.all([
-      supabase.from("restaurants").select("agent_status, subscription_plan").eq("id", restaurantId).single(),
+      supabase.from("restaurants").select("name, agent_status, subscription_plan").eq("id", restaurantId).single(),
       supabase.from("orders").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId).eq("status", "nouvelle").gte("created_at", `${today}T00:00:00`),
       supabase.from("reservations").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurantId).eq("status", "en_attente").eq("date", today),
     ]);

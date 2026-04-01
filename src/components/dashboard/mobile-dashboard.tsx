@@ -19,6 +19,7 @@ interface Props {
   plan: SubscriptionPlan;
   reservationStats?: ReservationStats | null;
   upcomingSummary?: UpcomingReservationSummary | null;
+  restaurantName?: string;
 }
 
 const orderDot: Record<string, string> = {
@@ -35,12 +36,13 @@ function Trend({ value }: { value: number }) {
   return <span className={`text-xs font-medium ${value > 0 ? "text-green" : "text-red-500"}`}>{value > 0 ? "↑" : "↓"}{Math.abs(value)}%</span>;
 }
 
-export function MobileDashboard({ stats, plan, reservationStats, upcomingSummary }: Props) {
+export function MobileDashboard({ stats, plan, reservationStats, upcomingSummary, restaurantName = "" }: Props) {
   const showOrders = plan === "orders" || plan === "pro";
   const showReservations = plan === "tables" || plan === "pro";
   const now = new Date();
   const dateLabel = now.toLocaleDateString("fr-BE", { weekday: "short", day: "numeric", month: "short" });
   const hour = now.getHours();
+  const emoji = hour < 12 ? "☀️" : hour < 18 ? "🌤️" : "🌙";
   const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
 
   // Feed d'activité mélangé
@@ -74,7 +76,10 @@ export function MobileDashboard({ stats, plan, reservationStats, upcomingSummary
     <div className="px-4 pt-3 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-heading font-bold text-foreground">{greeting}</h1>
+        <div>
+          <h1 className="text-lg font-heading font-bold text-foreground">{greeting} {emoji}</h1>
+          {restaurantName && <p className="text-xs text-muted-foreground mt-0.5">{restaurantName}</p>}
+        </div>
         <span className="text-xs text-muted-foreground">{dateLabel}</span>
       </div>
 

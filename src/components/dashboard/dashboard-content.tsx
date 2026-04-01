@@ -51,6 +51,7 @@ interface DashboardContentProps {
   reservationStats?: ReservationStats | null;
   upcomingSummary?: UpcomingReservationSummary | null;
   restaurantId: string;
+  restaurantName?: string;
 }
 
 // -- Composant principal --
@@ -63,6 +64,7 @@ export function DashboardContent({
   reservationStats,
   upcomingSummary,
   restaurantId,
+  restaurantName = "",
 }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState("commandes");
 
@@ -86,6 +88,7 @@ export function DashboardContent({
         plan={plan}
         reservationStats={reservationStats}
         upcomingSummary={upcomingSummary}
+        restaurantName={restaurantName}
       />
     </div>
 

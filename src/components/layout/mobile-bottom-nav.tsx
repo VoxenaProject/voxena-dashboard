@@ -28,7 +28,6 @@ const mainItems = [
 const moreItems = [
   { href: "/menu", label: "Menu", icon: UtensilsCrossed, plans: ["orders", "pro"] },
   { href: "/floor-plan", label: "Plan de salle", icon: LayoutGrid, plans: ["tables", "pro"] },
-  { href: "/kitchen", label: "Cuisine", icon: ChefHat, plans: ["orders", "pro"] },
   { href: "/settings", label: "Paramètres", icon: Settings, plans: ["orders", "tables", "pro"] },
 ];
 
